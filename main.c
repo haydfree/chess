@@ -1,9 +1,7 @@
-#include "chess_engine.h"
+#include <stdio.h>
 
-int main()
-{
-
-    cpu_play_cpu();
+int main() {
+    printf("hello world\n");
 
     return 0;
 }
