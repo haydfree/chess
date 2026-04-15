@@ -1,7 +1,7 @@
 CC=			cc
 CPPFLAGS=	
 CFLAGS=		-std=c99 -g3 -O0 -Wall -Werror -Wextra -pedantic
-LIBS=	
+LIBS=		-lraylib
 LDFLAGS=	
 TARGET=		chess
 SRC=		main.c chess.c	
