@@ -1,9 +1,9 @@
 # chess_engine
 how to run
 ```
-git clone https://github.com/haydfree/chess_engine
+git clone https://github.com/haydfree/chess
 make; make run
 ```
 
 ### dependencies
-- none
+- raylib https://github.com/raysan5/raylib
