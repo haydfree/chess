@@ -1,13 +1,61 @@
 #include "chess.h"
 
+#define BOARD_SCALE 0.75f
+#define PIECE_SCALE 0.65f
+#define MAX_PIECES 32
 #define TARGET_FPS 20
+#define NUM_TEXTURES 13
+#define WIDTH_BOARD 784
+#define HEIGHT_BOARD WIDTH_BOARD
 #define NUM_COL 8
 #define NUM_ROW 8
-#define NUM_PIECES 12
-#define CELL_SIZE_PX 80
+#define CELL_SIZE_PX WIDTH_BOARD *BOARD_SCALE / NUM_COL
 #define TEXTURE_FILE_PATH "assets"
 
-void load_textures(Texture2D *tb) {
+typedef enum captured { NOT_CAPTURED, CAPTURED } captured;
+
+typedef enum piece_type {
+    WHITE_PAWN,
+    WHITE_KNIGHT,
+    WHITE_BISHOP,
+    WHITE_ROOK,
+    WHITE_QUEEN,
+    WHITE_KING,
+    BLACK_PAWN,
+    BLACK_KNIGHT,
+    BLACK_BISHOP,
+    BLACK_ROOK,
+    BLACK_QUEEN,
+    BLACK_KING,
+} piece_type;
+
+typedef struct piece {
+    int x, y;
+    piece_type type;
+    Texture2D tx;
+    captured cap;
+} piece;
+
+void pieces_buffer_init(piece *pb, Texture2D *tb) {
+    pb[0] = (piece) {0, 0, BLACK_ROOK, tb[BLACK_ROOK], NOT_CAPTURED};
+    pb[1] = (piece) {1, 0, BLACK_KNIGHT, tb[BLACK_KNIGHT], NOT_CAPTURED};
+    pb[2] = (piece) {2, 0, BLACK_BISHOP, tb[BLACK_BISHOP], NOT_CAPTURED};
+    pb[3] = (piece) {3, 0, BLACK_QUEEN, tb[BLACK_QUEEN], NOT_CAPTURED};
+    pb[4] = (piece) {4, 0, BLACK_KING, tb[BLACK_KING], NOT_CAPTURED};
+    pb[5] = (piece) {5, 0, BLACK_BISHOP, tb[BLACK_BISHOP], NOT_CAPTURED};
+    pb[6] = (piece) {6, 0, BLACK_KNIGHT, tb[BLACK_KNIGHT], NOT_CAPTURED};
+    pb[7] = (piece) {7, 0, BLACK_ROOK, tb[BLACK_ROOK], NOT_CAPTURED};
+    pb[8] = (piece) {0, 1, BLACK_PAWN, tb[BLACK_PAWN], NOT_CAPTURED};
+    pb[9] = (piece) {1, 1, BLACK_PAWN, tb[BLACK_PAWN], NOT_CAPTURED};
+    pb[10] = (piece) {2, 1, BLACK_PAWN, tb[BLACK_PAWN], NOT_CAPTURED};
+    pb[11] = (piece) {3, 1, BLACK_PAWN, tb[BLACK_PAWN], NOT_CAPTURED};
+    pb[12] = (piece) {4, 1, BLACK_PAWN, tb[BLACK_PAWN], NOT_CAPTURED};
+    pb[13] = (piece) {5, 1, BLACK_PAWN, tb[BLACK_PAWN], NOT_CAPTURED};
+    pb[14] = (piece) {6, 1, BLACK_PAWN, tb[BLACK_PAWN], NOT_CAPTURED};
+    pb[15] = (piece) {7, 1, BLACK_PAWN, tb[BLACK_PAWN], NOT_CAPTURED};
+}
+
+void textures_load(Texture2D *tb) {
     tb[0] = LoadTexture(TEXTURE_FILE_PATH "/white-pawn.png");
     tb[1] = LoadTexture(TEXTURE_FILE_PATH "/white-knight.png");
     tb[2] = LoadTexture(TEXTURE_FILE_PATH "/white-bishop.png");
@@ -21,48 +69,55 @@ void load_textures(Texture2D *tb) {
     tb[9] = LoadTexture(TEXTURE_FILE_PATH "/black-rook.png");
     tb[10] = LoadTexture(TEXTURE_FILE_PATH "/black-queen.png");
     tb[11] = LoadTexture(TEXTURE_FILE_PATH "/black-king.png");
+
+    tb[12] = LoadTexture(TEXTURE_FILE_PATH "/board.png");
 }
 
-void unload_textures(Texture2D *tb, size_t tb_size) {
+void textures_unload(Texture2D *tb, size_t tb_size) {
     for (size_t i = 0; i < tb_size; i++) { UnloadTexture(tb[i]); }
 }
 
-void draw_board() {
-    int cf = 0;
-    for (int col = 0; col < NUM_COL; col++) {
-        for (int row = 0; row < NUM_ROW; row++) {
-            int x = row * CELL_SIZE_PX, y = col * CELL_SIZE_PX;
-            if (cf) {
-                DrawRectangle(x, y, CELL_SIZE_PX, CELL_SIZE_PX, BLACK);
-            } else {
-                DrawRectangle(x, y, CELL_SIZE_PX, CELL_SIZE_PX, WHITE);
-            }
-            cf = !cf;
-        }
-        cf = !cf;
+void board_draw(Texture2D *t) {
+    DrawTextureEx(*t, (Vector2) {0, 0}, 0.0f, BOARD_SCALE, WHITE);
+}
+
+void coord_to_px(Vector2 *v) {
+    v->x = v->x * CELL_SIZE_PX;
+    v->y = v->y * CELL_SIZE_PX;
+}
+
+void pieces_draw(piece *pb, size_t pb_size) {
+    for (size_t i = 0; i < pb_size; i++) {
+        piece p = pb[i];
+        Vector2 pos = {p.x, p.y};
+        coord_to_px(&pos);
+        DrawTextureEx(p.tx, pos, 0.0f, PIECE_SCALE, WHITE);
     }
 }
 
-int game_loop() {
-    Texture2D texture_buf[sizeof(Texture2D) * 12] = {0};
+void input_get() { }
 
-    InitWindow(NUM_COL * CELL_SIZE_PX, NUM_ROW * CELL_SIZE_PX, "chess");
+int game_loop() {
+    Texture2D textures_buf[NUM_TEXTURES] = {0};
+    piece pieces_buf[MAX_PIECES] = {0};
+
+    InitWindow(WIDTH_BOARD, HEIGHT_BOARD, "chess");
     SetTargetFPS(TARGET_FPS);
-    load_textures((Texture2D *) texture_buf);
+    textures_load((Texture2D *) textures_buf);
+    pieces_buffer_init((piece *) &pieces_buf, (Texture2D *) &textures_buf);
 
     while (!WindowShouldClose()) {
         BeginDrawing();
-
-        draw_board();
-        DrawTextureRec(texture_buf[0],
-            (Rectangle) {100, 100, CELL_SIZE_PX, CELL_SIZE_PX},
-            (Vector2) {100, 100}, WHITE);
         ClearBackground(WHITE);
+
+        board_draw((Texture2D *) &textures_buf[12]);
+        pieces_draw((piece *) &pieces_buf, MAX_PIECES);
+        input_get((piece *) &pieces_buf, MAX_PIECES);
 
         EndDrawing();
     }
 
-    unload_textures((Texture2D *) texture_buf, NUM_PIECES);
+    textures_unload((Texture2D *) textures_buf, NUM_TEXTURES);
     CloseWindow();
     return 0;
 }
