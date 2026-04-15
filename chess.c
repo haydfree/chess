@@ -1,15 +1,13 @@
 #include "chess.h"
 
-#define BOARD_SCALE 0.75f
-#define PIECE_SCALE 0.65f
 #define MAX_PIECES 32
 #define TARGET_FPS 20
 #define NUM_TEXTURES 13
-#define WIDTH_BOARD 784
+#define WIDTH_BOARD 600
 #define HEIGHT_BOARD WIDTH_BOARD
 #define NUM_COL 8
 #define NUM_ROW 8
-#define CELL_SIZE_PX WIDTH_BOARD *BOARD_SCALE / NUM_COL
+#define CELL_SIZE_PX WIDTH_BOARD / NUM_COL
 #define TEXTURE_FILE_PATH "assets"
 
 typedef enum captured { NOT_CAPTURED, CAPTURED } captured;
@@ -53,6 +51,23 @@ void pieces_buffer_init(piece *pb, Texture2D *tb) {
     pb[13] = (piece) {5, 1, BLACK_PAWN, tb[BLACK_PAWN], NOT_CAPTURED};
     pb[14] = (piece) {6, 1, BLACK_PAWN, tb[BLACK_PAWN], NOT_CAPTURED};
     pb[15] = (piece) {7, 1, BLACK_PAWN, tb[BLACK_PAWN], NOT_CAPTURED};
+
+    pb[16] = (piece) {0, 7, WHITE_ROOK, tb[WHITE_ROOK], NOT_CAPTURED};
+    pb[17] = (piece) {1, 7, WHITE_KNIGHT, tb[WHITE_KNIGHT], NOT_CAPTURED};
+    pb[18] = (piece) {2, 7, WHITE_BISHOP, tb[WHITE_BISHOP], NOT_CAPTURED};
+    pb[19] = (piece) {3, 7, WHITE_QUEEN, tb[WHITE_QUEEN], NOT_CAPTURED};
+    pb[20] = (piece) {4, 7, WHITE_KING, tb[WHITE_KING], NOT_CAPTURED};
+    pb[21] = (piece) {5, 7, WHITE_BISHOP, tb[WHITE_BISHOP], NOT_CAPTURED};
+    pb[22] = (piece) {6, 7, WHITE_KNIGHT, tb[WHITE_KNIGHT], NOT_CAPTURED};
+    pb[23] = (piece) {7, 7, WHITE_ROOK, tb[WHITE_ROOK], NOT_CAPTURED};
+    pb[24] = (piece) {0, 6, WHITE_PAWN, tb[WHITE_PAWN], NOT_CAPTURED};
+    pb[25] = (piece) {1, 6, WHITE_PAWN, tb[WHITE_PAWN], NOT_CAPTURED};
+    pb[26] = (piece) {2, 6, WHITE_PAWN, tb[WHITE_PAWN], NOT_CAPTURED};
+    pb[27] = (piece) {3, 6, WHITE_PAWN, tb[WHITE_PAWN], NOT_CAPTURED};
+    pb[28] = (piece) {4, 6, WHITE_PAWN, tb[WHITE_PAWN], NOT_CAPTURED};
+    pb[29] = (piece) {5, 6, WHITE_PAWN, tb[WHITE_PAWN], NOT_CAPTURED};
+    pb[30] = (piece) {6, 6, WHITE_PAWN, tb[WHITE_PAWN], NOT_CAPTURED};
+    pb[31] = (piece) {7, 6, WHITE_PAWN, tb[WHITE_PAWN], NOT_CAPTURED};
 }
 
 void textures_load(Texture2D *tb) {
@@ -78,7 +93,7 @@ void textures_unload(Texture2D *tb, size_t tb_size) {
 }
 
 void board_draw(Texture2D *t) {
-    DrawTextureEx(*t, (Vector2) {0, 0}, 0.0f, BOARD_SCALE, WHITE);
+    DrawTextureEx(*t, (Vector2) {0, 0}, 0.0f, 1.0f, WHITE);
 }
 
 void coord_to_px(Vector2 *v) {
@@ -91,11 +106,19 @@ void pieces_draw(piece *pb, size_t pb_size) {
         piece p = pb[i];
         Vector2 pos = {p.x, p.y};
         coord_to_px(&pos);
-        DrawTextureEx(p.tx, pos, 0.0f, PIECE_SCALE, WHITE);
+        DrawTextureV(p.tx, pos, WHITE);
     }
 }
 
-void input_get() { }
+void input_get() {
+    Vector2 mp = GetMousePosition();
+    Vector2 cell_hover
+        = {floorf(mp.x / CELL_SIZE_PX), floorf(mp.y / CELL_SIZE_PX)};
+    printf("%f %f\n", cell_hover.x, cell_hover.y);
+
+    DrawRectangle(cell_hover.x * CELL_SIZE_PX, cell_hover.y * CELL_SIZE_PX,
+        CELL_SIZE_PX, CELL_SIZE_PX, RED);
+}
 
 int game_loop() {
     Texture2D textures_buf[NUM_TEXTURES] = {0};
@@ -112,7 +135,7 @@ int game_loop() {
 
         board_draw((Texture2D *) &textures_buf[12]);
         pieces_draw((piece *) &pieces_buf, MAX_PIECES);
-        input_get((piece *) &pieces_buf, MAX_PIECES);
+        input_get();
 
         EndDrawing();
     }

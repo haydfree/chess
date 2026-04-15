@@ -1,6 +1,7 @@
 #ifndef CHESS_H
 #define CHESS_H
 
+#include <math.h>
 #include <stdio.h>
 
 #include <raylib.h>
