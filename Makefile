@@ -5,13 +5,12 @@ LIBS=		-lraylib
 LDFLAGS=	
 TARGET=		chess
 SRC=		main.c chess.c	
-INC=		
 OBJ=		${SRC:.c=.o}
 
 all: ${TARGET}
 
-.c.o:
-	${CC} ${CPPFLAGS} ${CFLAGS} -c $<
+${OBJ}: %.o: %.c
+	${CC} ${CPPFLAGS} ${CFLAGS} -c $< -o $@
 
 ${TARGET}: ${OBJ}
 	${CC} -o $@ ${OBJ} ${LIBS} ${LDFLAGS}

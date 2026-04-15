@@ -1,7 +1,7 @@
-#include <stdio.h>
+#include "chess.h"
 
 int main() {
-    printf("hello world\n");
+    game_loop();
 
     return 0;
 }
