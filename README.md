@@ -1,4 +1,4 @@
-# chess_engine
+# chess
 how to run
 ```
 git clone https://github.com/haydfree/chess

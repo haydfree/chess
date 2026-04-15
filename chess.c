@@ -1,10 +1,15 @@
 #include "chess.h"
 
+#define TARGET_FPS 20
 #define NUM_COL 8
 #define NUM_ROW 8
 #define CELL_SIZE_PX 80
 
-int draw_board() {
+void load_textures() { }
+
+void unload_textures() { }
+
+void draw_board() {
     int cf = 0;
     for (int col = 0; col < NUM_COL; col++) {
         for (int row = 0; row < NUM_ROW; row++) {
@@ -18,12 +23,11 @@ int draw_board() {
         }
         cf = !cf;
     }
-    return 0;
 }
 
 int game_loop() {
     InitWindow(NUM_COL * CELL_SIZE_PX, NUM_ROW * CELL_SIZE_PX, "chess");
-    SetTargetFPS(60);
+    SetTargetFPS(TARGET_FPS);
     while (!WindowShouldClose()) {
         BeginDrawing();
 
