@@ -28,7 +28,7 @@ typedef struct piece {
 	int active;
 	Texture2D *tx;
 } piece;
-typedef void moves_gen(piece *p);
+typedef void fp_moves_gen(piece *);
 
 void pieces_init(piece pcs[NUM_ROW][NUM_COL], Texture2D txs[NUM_PC][NUM_PT]) {
 	pct board_state[NUM_ROW][NUM_COL]={{ {pc_B,pt_R},{pc_B,pt_N},{pc_B,pt_B},{pc_B,pt_Q},{pc_B,pt_K},{pc_B,pt_B},{pc_B,pt_N},{pc_B,pt_R} },{ {pc_B,pt_P},{pc_B,pt_P},{pc_B,pt_P},{pc_B,pt_P},{pc_B,pt_P},{pc_B,pt_P},{pc_B,pt_P},{pc_B,pt_P} },{ {pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE} },{ {pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE} },{ {pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE} },{ {pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE} },{ {pc_W,pt_P},{pc_W,pt_P},{pc_W,pt_P},{pc_W,pt_P},{pc_W,pt_P},{pc_W,pt_P},{pc_W,pt_P},{pc_W,pt_P} },{ {pc_W,pt_R},{pc_W,pt_N},{pc_W,pt_B},{pc_W,pt_Q},{pc_W,pt_K},{pc_W,pt_B},{pc_W,pt_N},{pc_W,pt_R} }};	
@@ -117,7 +117,14 @@ void moves_gen_b(piece *p) {(void) p;}
 void moves_gen_r(piece *p) {(void) p;}
 void moves_gen_q(piece *p) {(void) p;}
 void moves_gen_k(piece *p) {(void) p;}
-void moves_generate(piece *p, moves_gen **mdt) {mdt[p->pt](p);}
+void moves_gen_all(piece pcs[NUM_ROW][NUM_COL], fp_moves_gen **mdt) {
+	for (int row=0;row<NUM_ROW;row++) {
+		for (int col=0;col<NUM_COL;col++) {
+			piece p=pcs[row][col];
+			if (p.active) mdt[p.pt](&p);
+		}
+	}
+}
 
 void moves_draw(piece *sel_p) {
 	cell c = sel_p->c;
@@ -153,12 +160,13 @@ int game_loop() {
 	Texture2D textures[NUM_PC][NUM_PT] = {0};
 	Texture2D tx_board = {0};
 	piece pieces[NUM_ROW][NUM_COL] = {0};
-	moves_gen *mdt[NUM_PT] = {
+	fp_moves_gen *mdt[NUM_PT] = {
 		moves_gen_p,moves_gen_n,moves_gen_b,
 		moves_gen_r,moves_gen_q,moves_gen_k
 	};
 	piece sel_p = {0};
 	Vector2 mouse_pos = {0};
+	int flag_gen = 1;
 
 	InitWindow(WIDTH_BOARD, HEIGHT_BOARD, "chess");
 	SetTargetFPS(TARGET_FPS);
@@ -171,11 +179,12 @@ int game_loop() {
 
 	        board_draw(&tx_board);
 	        pieces_draw(pieces);
-
-	        if (is_click(&mouse_pos)) {
-	        	get_piece_clicked(&mouse_pos, pieces, &sel_p);
-			moves_generate(&sel_p,(moves_gen**)&mdt);
+	        if (flag_gen) {
+	        	moves_gen_all(pieces, (fp_moves_gen**)mdt);
+	        	flag_gen=0;
 	        }
+	        if (is_click(&mouse_pos)) 
+	        	get_piece_clicked(&mouse_pos, pieces, &sel_p);
 		moves_draw(&sel_p);
 
 	        EndDrawing();
