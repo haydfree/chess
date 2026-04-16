@@ -71,9 +71,13 @@ void textures_unload(Texture2D txs[NUM_PC][NUM_PT], Texture2D *txb) {
 
 void board_draw(Texture2D *txb) {DrawTexture(*txb,0,0,WHITE);}
 
-void cell_to_px(cell *c) {
-    c->x = c->x * CELL_SIZE_PX;
-    c->y = c->y * CELL_SIZE_PX;
+void cell_to_px(cell *c, int centered) {
+	c->x = c->x * CELL_SIZE_PX;
+	c->y = c->y * CELL_SIZE_PX;
+	if (centered) {
+		c->x+=CELL_SIZE_PX/2;
+		c->y+=CELL_SIZE_PX/2;
+	}
 }
 
 void pieces_draw(piece pcs[NUM_ROW][NUM_COL]) {
@@ -81,7 +85,7 @@ void pieces_draw(piece pcs[NUM_ROW][NUM_COL]) {
     	for (int col = 0; col < NUM_COL; col++) {
 	        piece p = pcs[row][col];
 	        cell pos = p.c;
-	        cell_to_px(&pos);
+	        cell_to_px(&pos,0);
 	        if (p.active)
 		        DrawTextureV(*p.tx, (Vector2){pos.x,pos.y}, WHITE);
 	}
@@ -89,23 +93,23 @@ void pieces_draw(piece pcs[NUM_ROW][NUM_COL]) {
 }
 
 void moves_gen_p(piece *p) {
-	printf("gen pawn moves\n");
-    piece_color pc = p->pc;
-    move *moves = p->moves;
-    int starting_row = pc == pc_W ? 6 : 1;
-    int mv_counter = 0;
-    if (p->c.y == starting_row) {
-        if (pc == pc_W) {
-            moves[mv_counter++] = (move) {0, -2};
-            moves[mv_counter++] = (move) {0, -1};
-        } else {
-            moves[mv_counter++] = (move) {0, 2};
-            moves[mv_counter++] = (move) {0, 1};
-        }
-    } else {
-        moves[mv_counter++] = pc == pc_W ? (move) {0, -1} : (move) {0, 1};
-    }
-    p->moves_size = mv_counter;
+	piece_color pc = p->pc;
+	move *moves = p->moves;
+	int starting_row = pc == pc_W ? 6 : 1;
+	int mv_counter = 0;
+	if (p->c.y == starting_row) {
+		if (pc == pc_W) {
+			moves[mv_counter++] = (move) {0, -2};
+			moves[mv_counter++] = (move) {0, -1};
+		} else {
+			moves[mv_counter++] = (move) {0, 2};
+			moves[mv_counter++] = (move) {0, 1};
+		}
+	} else {
+		moves[mv_counter++] = pc == pc_W ? (move) {0, -1} 
+			: (move) {0, 1};
+	}
+	p->moves_size = mv_counter;
 }
 
 void moves_gen_n(piece *p) {(void) p;}
@@ -115,13 +119,13 @@ void moves_gen_q(piece *p) {(void) p;}
 void moves_gen_k(piece *p) {(void) p;}
 void moves_generate(piece *p, moves_gen **mdt) {mdt[p->pt](p);}
 
-void moves_display(piece *sel_p) {
+void moves_draw(piece *sel_p) {
 	cell c = sel_p->c;
 	move *moves = sel_p->moves;
 	int ms = sel_p->moves_size;
 	for (int i=0;i<ms;i++) {
 		cell new = (cell){c.x+moves[i].x,c.y+moves[i].y};
-		cell_to_px(&new);
+		cell_to_px(&new, 1);
 		DrawCircleV((Vector2){new.x,new.y}, 5.0, GRAY);
 	}
 }
@@ -172,7 +176,7 @@ int game_loop() {
 	        	get_piece_clicked(&mouse_pos, pieces, &sel_p);
 			moves_generate(&sel_p,(moves_gen**)&mdt);
 	        }
-		moves_display(&sel_p);
+		moves_draw(&sel_p);
 
 	        EndDrawing();
 	}
