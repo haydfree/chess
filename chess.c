@@ -89,6 +89,7 @@ void pieces_draw(piece pcs[NUM_ROW][NUM_COL]) {
 }
 
 void moves_gen_p(piece *p) {
+	printf("gen pawn moves\n");
     piece_color pc = p->pc;
     move *moves = p->moves;
     int starting_row = pc == pc_W ? 6 : 1;
@@ -112,10 +113,7 @@ void moves_gen_b(piece *p) {(void) p;}
 void moves_gen_r(piece *p) {(void) p;}
 void moves_gen_q(piece *p) {(void) p;}
 void moves_gen_k(piece *p) {(void) p;}
-void moves_generate(piece *p, moves_gen **mdt) {
-    piece_type pt = p->pt;
-    mdt[pt](p);
-}
+void moves_generate(piece *p, moves_gen **mdt) {mdt[p->pt](p);}
 
 void moves_display(piece *sel_p) {
 	cell c = sel_p->c;
@@ -129,13 +127,22 @@ void moves_display(piece *sel_p) {
 }
 
 int is_click(Vector2 *mp) {
-	*mp = GetMousePosition();
-	if (IsMouseButtonPressed(0)) return 1;
-	else return 0;
+	int ret = 0;
+	if (IsMouseButtonPressed(0)) {
+		*mp = GetMousePosition();
+		ret = 1;
+	}
+	return ret;
 }
 
-void cell_set(cell *c, Vector2 *mp) {
-	*c = (cell){mp->x/CELL_SIZE_PX,mp->y/CELL_SIZE_PX};
+void get_piece_clicked(Vector2 *mp, piece pcs[NUM_ROW][NUM_COL], piece *sel_p) {
+	cell c = (cell){mp->x/CELL_SIZE_PX,mp->y/CELL_SIZE_PX};
+	for (int row=0;row<NUM_ROW;row++) {
+		for (int col=0;col<NUM_COL;col++) {
+			piece p=pcs[row][col];
+			if (p.c.x==c.x&&p.c.y==c.y) *sel_p=p;
+		}
+	}
 }
 
 int game_loop() {
@@ -146,7 +153,6 @@ int game_loop() {
 		moves_gen_p,moves_gen_n,moves_gen_b,
 		moves_gen_r,moves_gen_q,moves_gen_k
 	};
-	cell sel_c = {-1, -1};
 	piece sel_p = {0};
 	Vector2 mouse_pos = {0};
 
@@ -163,9 +169,10 @@ int game_loop() {
 	        pieces_draw(pieces);
 
 	        if (is_click(&mouse_pos)) {
-			cell_set(&sel_c, &mouse_pos);
+	        	get_piece_clicked(&mouse_pos, pieces, &sel_p);
 			moves_generate(&sel_p,(moves_gen**)&mdt);
 	        }
+		moves_display(&sel_p);
 
 	        EndDrawing();
 	}
