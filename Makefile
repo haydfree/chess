@@ -1,6 +1,6 @@
 CC=			cc
 CPPFLAGS=	
-CFLAGS=		-std=c99 -g3 -O0 -Wall -Werror -Wextra -pedantic
+CFLAGS=		-std=c99 -g -O2 -Wall -Werror -Wextra -pedantic -fno-omit-frame-pointer
 LIBS=		-lraylib -lm
 LDFLAGS=	
 TARGET=		chess
@@ -20,5 +20,8 @@ clean:
 
 run: ${TARGET}
 	./$<
+
+valgrind: ${TARGET}
+	valgrind --tool=callgrind --instr-atstart=no ./$<
 
 .PHONY: all clean run

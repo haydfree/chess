@@ -72,16 +72,12 @@ void pieces_buffer_init(piece *pb, Texture2D *tb) {
     pb[15] = (piece) {7, 1, pc_BLACK, pt_PAWN, NOT_CAPTURED, tb[BLACK_PAWN]};
 
     pb[16] = (piece) {0, 7, pc_WHITE, pt_ROOK, NOT_CAPTURED, tb[WHITE_ROOK]};
-    pb[17]
-        = (piece) {1, 7, pc_WHITE, pt_KNIGHT, NOT_CAPTURED, tb[WHITE_KNIGHT]};
-    pb[18]
-        = (piece) {2, 7, pc_WHITE, pt_BISHOP, NOT_CAPTURED, tb[WHITE_BISHOP]};
+    pb[17] = (piece) {1, 7, pc_WHITE, pt_KNIGHT, NOT_CAPTURED, tb[WHITE_KNIGHT]};
+    pb[18] = (piece) {2, 7, pc_WHITE, pt_BISHOP, NOT_CAPTURED, tb[WHITE_BISHOP]};
     pb[19] = (piece) {3, 7, pc_WHITE, pt_QUEEN, NOT_CAPTURED, tb[WHITE_QUEEN]};
     pb[20] = (piece) {4, 7, pc_WHITE, pt_KING, NOT_CAPTURED, tb[WHITE_KING]};
-    pb[21]
-        = (piece) {5, 7, pc_WHITE, pt_BISHOP, NOT_CAPTURED, tb[WHITE_BISHOP]};
-    pb[22]
-        = (piece) {6, 7, pc_WHITE, pt_KNIGHT, NOT_CAPTURED, tb[WHITE_KNIGHT]};
+    pb[21] = (piece) {5, 7, pc_WHITE, pt_BISHOP, NOT_CAPTURED, tb[WHITE_BISHOP]};
+    pb[22] = (piece) {6, 7, pc_WHITE, pt_KNIGHT, NOT_CAPTURED, tb[WHITE_KNIGHT]};
     pb[23] = (piece) {7, 7, pc_WHITE, pt_ROOK, NOT_CAPTURED, tb[WHITE_ROOK]};
     pb[24] = (piece) {0, 6, pc_WHITE, pt_PAWN, NOT_CAPTURED, tb[WHITE_PAWN]};
     pb[25] = (piece) {1, 6, pc_WHITE, pt_PAWN, NOT_CAPTURED, tb[WHITE_PAWN]};
