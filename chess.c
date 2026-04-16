@@ -1,261 +1,202 @@
 #include "chess.h"
 
-#define MAX_PIECES 32
 #define MAX_MOVES 32
 #define TARGET_FPS 20
-#define NUM_TEXTURES 13
 #define WIDTH_BOARD 600
 #define HEIGHT_BOARD WIDTH_BOARD
 #define NUM_COL 8
 #define NUM_ROW 8
+#define NUM_PC 2
+#define NUM_PT 6
 #define CELL_SIZE_PX (WIDTH_BOARD / NUM_COL)
-#define TEXTURE_FILE_PATH "assets"
+#define PATH_TX "assets"
 
-typedef enum piece_color { pc_WHITE, pc_BLACK } piece_color;
-
-typedef enum piece_type {
-    pt_PAWN,
-    pt_KNIGHT,
-    pt_BISHOP,
-    pt_ROOK,
-    pt_QUEEN,
-    pt_KING,
-} piece_type;
-
-typedef enum piece_captured { NOT_CAPTURED, CAPTURED } piece_captured;
-
-typedef enum texture_buffer_idx {
-    WHITE_PAWN,
-    WHITE_KNIGHT,
-    WHITE_BISHOP,
-    WHITE_ROOK,
-    WHITE_QUEEN,
-    WHITE_KING,
-    BLACK_PAWN,
-    BLACK_KNIGHT,
-    BLACK_BISHOP,
-    BLACK_ROOK,
-    BLACK_QUEEN,
-    BLACK_KING
-} texture_buffer_idx;
-
+typedef enum piece_color { pc_W, pc_B } piece_color;
+typedef enum piece_type { pt_P, pt_N, pt_B, pt_R, pt_Q, pt_K } piece_type;
+typedef enum piece_captured { pcap_FALSE, pcap_TRUE } piece_captured;
+typedef enum piece_idx {
+	WP, WN, WB, WR, WQ, WK,
+	BP, BN, BB, BR, BQ, BK,
+	NO=-1
+} piece_idx;
+typedef struct pct { piece_color pc; piece_type pt; } pct;
+typedef struct cell {int x, y;} cell;
+typedef struct move {int x, y;} move;
 typedef struct piece {
-    int x, y;
-    piece_color pc;
-    piece_type pt;
-    piece_captured pcap;
-    Texture2D tx;
+	cell c;
+	piece_color pc;
+	piece_type pt;
+	piece_captured pcap;
+	move moves[MAX_MOVES];
+	int moves_size;
+	Texture2D *tx;
 } piece;
+typedef void moves_gen(piece *p);
 
-typedef struct move {
-    int x, y;
-} move;
+pct pi_to_pct(piece_idx pi) {
+	pct res = {0};
 
-typedef size_t moves_gen(piece *p, piece *pb, move *mv);
+	if (pi<=5&&pi!=NO) res.pc=pc_W;
+	else if (pi>=6) res.pc=pc_B;
 
-void pieces_buffer_init(piece *pb, Texture2D *tb) {
-    pb[0] = (piece) {0, 0, pc_BLACK, pt_ROOK, NOT_CAPTURED, tb[BLACK_ROOK]};
-    pb[1] = (piece) {1, 0, pc_BLACK, pt_KNIGHT, NOT_CAPTURED, tb[BLACK_KNIGHT]};
-    pb[2] = (piece) {2, 0, pc_BLACK, pt_BISHOP, NOT_CAPTURED, tb[BLACK_BISHOP]};
-    pb[3] = (piece) {3, 0, pc_BLACK, pt_QUEEN, NOT_CAPTURED, tb[BLACK_QUEEN]};
-    pb[4] = (piece) {4, 0, pc_BLACK, pt_KING, NOT_CAPTURED, tb[BLACK_KING]};
-    pb[5] = (piece) {5, 0, pc_BLACK, pt_BISHOP, NOT_CAPTURED, tb[BLACK_BISHOP]};
-    pb[6] = (piece) {6, 0, pc_BLACK, pt_KNIGHT, NOT_CAPTURED, tb[BLACK_KNIGHT]};
-    pb[7] = (piece) {7, 0, pc_BLACK, pt_ROOK, NOT_CAPTURED, tb[BLACK_ROOK]};
-    pb[8] = (piece) {0, 1, pc_BLACK, pt_PAWN, NOT_CAPTURED, tb[BLACK_PAWN]};
-    pb[9] = (piece) {1, 1, pc_BLACK, pt_PAWN, NOT_CAPTURED, tb[BLACK_PAWN]};
-    pb[10] = (piece) {2, 1, pc_BLACK, pt_PAWN, NOT_CAPTURED, tb[BLACK_PAWN]};
-    pb[11] = (piece) {3, 1, pc_BLACK, pt_PAWN, NOT_CAPTURED, tb[BLACK_PAWN]};
-    pb[12] = (piece) {4, 1, pc_BLACK, pt_PAWN, NOT_CAPTURED, tb[BLACK_PAWN]};
-    pb[13] = (piece) {5, 1, pc_BLACK, pt_PAWN, NOT_CAPTURED, tb[BLACK_PAWN]};
-    pb[14] = (piece) {6, 1, pc_BLACK, pt_PAWN, NOT_CAPTURED, tb[BLACK_PAWN]};
-    pb[15] = (piece) {7, 1, pc_BLACK, pt_PAWN, NOT_CAPTURED, tb[BLACK_PAWN]};
+	if (pi%6==0) res.pt=pt_P;
+	else if (pi%6==1) res.pt=pt_K;
+	else if (pi%6==2) res.pt=pt_B;
+	else if (pi%6==3) res.pt=pt_R;
+	else if (pi%6==4) res.pt=pt_Q;
+	else if (pi%6==5) res.pt=pt_K;
 
-    pb[16] = (piece) {0, 7, pc_WHITE, pt_ROOK, NOT_CAPTURED, tb[WHITE_ROOK]};
-    pb[17] = (piece) {1, 7, pc_WHITE, pt_KNIGHT, NOT_CAPTURED, tb[WHITE_KNIGHT]};
-    pb[18] = (piece) {2, 7, pc_WHITE, pt_BISHOP, NOT_CAPTURED, tb[WHITE_BISHOP]};
-    pb[19] = (piece) {3, 7, pc_WHITE, pt_QUEEN, NOT_CAPTURED, tb[WHITE_QUEEN]};
-    pb[20] = (piece) {4, 7, pc_WHITE, pt_KING, NOT_CAPTURED, tb[WHITE_KING]};
-    pb[21] = (piece) {5, 7, pc_WHITE, pt_BISHOP, NOT_CAPTURED, tb[WHITE_BISHOP]};
-    pb[22] = (piece) {6, 7, pc_WHITE, pt_KNIGHT, NOT_CAPTURED, tb[WHITE_KNIGHT]};
-    pb[23] = (piece) {7, 7, pc_WHITE, pt_ROOK, NOT_CAPTURED, tb[WHITE_ROOK]};
-    pb[24] = (piece) {0, 6, pc_WHITE, pt_PAWN, NOT_CAPTURED, tb[WHITE_PAWN]};
-    pb[25] = (piece) {1, 6, pc_WHITE, pt_PAWN, NOT_CAPTURED, tb[WHITE_PAWN]};
-    pb[26] = (piece) {2, 6, pc_WHITE, pt_PAWN, NOT_CAPTURED, tb[WHITE_PAWN]};
-    pb[27] = (piece) {3, 6, pc_WHITE, pt_PAWN, NOT_CAPTURED, tb[WHITE_PAWN]};
-    pb[28] = (piece) {4, 6, pc_WHITE, pt_PAWN, NOT_CAPTURED, tb[WHITE_PAWN]};
-    pb[29] = (piece) {5, 6, pc_WHITE, pt_PAWN, NOT_CAPTURED, tb[WHITE_PAWN]};
-    pb[30] = (piece) {6, 6, pc_WHITE, pt_PAWN, NOT_CAPTURED, tb[WHITE_PAWN]};
-    pb[31] = (piece) {7, 6, pc_WHITE, pt_PAWN, NOT_CAPTURED, tb[WHITE_PAWN]};
+	return res;
 }
 
-void textures_load(Texture2D *tb) {
-    tb[0] = LoadTexture(TEXTURE_FILE_PATH "/white-pawn.png");
-    tb[1] = LoadTexture(TEXTURE_FILE_PATH "/white-knight.png");
-    tb[2] = LoadTexture(TEXTURE_FILE_PATH "/white-bishop.png");
-    tb[3] = LoadTexture(TEXTURE_FILE_PATH "/white-rook.png");
-    tb[4] = LoadTexture(TEXTURE_FILE_PATH "/white-queen.png");
-    tb[5] = LoadTexture(TEXTURE_FILE_PATH "/white-king.png");
-
-    tb[6] = LoadTexture(TEXTURE_FILE_PATH "/black-pawn.png");
-    tb[7] = LoadTexture(TEXTURE_FILE_PATH "/black-knight.png");
-    tb[8] = LoadTexture(TEXTURE_FILE_PATH "/black-bishop.png");
-    tb[9] = LoadTexture(TEXTURE_FILE_PATH "/black-rook.png");
-    tb[10] = LoadTexture(TEXTURE_FILE_PATH "/black-queen.png");
-    tb[11] = LoadTexture(TEXTURE_FILE_PATH "/black-king.png");
-
-    tb[12] = LoadTexture(TEXTURE_FILE_PATH "/board.png");
+void pieces_init(piece pcs[NUM_ROW][NUM_COL], 
+	Texture2D txs[NUM_PC][NUM_PT], 
+	int board[NUM_ROW][NUM_COL]) {
+	for (int row=0;row<NUM_ROW;row++) {
+		for (int col=0;col<NUM_COL;col++) {
+			pct piece_info = pi_to_pct(board[row][col]);
+			pcs[row][col] = (piece) {
+				.c=(cell){col, row}, 
+				.pc=piece_info.pc, 
+				.pt=piece_info.pt,
+				.pcap=pcap_FALSE, 
+				.moves_size=0, 
+				.tx=&txs[row][col]
+			};
+		}
+	}
 }
 
-void textures_unload(Texture2D *tb, size_t tb_size) {
-    for (size_t i = 0; i < tb_size; i++) { UnloadTexture(tb[i]); }
+void textures_load(Texture2D txs[NUM_PC][NUM_PT], Texture2D *txb) {
+	for (int pc=pc_W;pc<NUM_PC;pc++) {
+		for (int pt=pt_P;pt<NUM_PT;pt++) {
+			txs[pc][pt]=LoadTexture(
+				TextFormat("%s/%d%d.png",PATH_TX,pc,pt));
+		}
+	}
+    	*txb = LoadTexture(TextFormat("%s/board.png",PATH_TX));
 }
 
-void board_draw(Texture2D *t) {
-    DrawTextureEx(*t, (Vector2) {0, 0}, 0.0f, 1.0f, WHITE);
+void textures_unload(Texture2D txs[NUM_PC][NUM_PT], Texture2D *txb) {
+	for (int pc=pc_W;pc<NUM_PC;pc++) {
+		for (int pt=pt_P;pt<NUM_PT;pt++) {
+			UnloadTexture(txs[pc][pt]);
+		}
+	}
+	UnloadTexture(*txb);
 }
 
-void coord_to_px(Vector2 *v) {
-    v->x = v->x * CELL_SIZE_PX;
-    v->y = v->y * CELL_SIZE_PX;
+void board_draw(Texture2D *txb) {DrawTexture(*txb,0,0,WHITE);}
+
+void cell_to_px(cell *c) {
+    c->x = c->x * CELL_SIZE_PX;
+    c->y = c->y * CELL_SIZE_PX;
 }
 
-void pieces_draw(piece *pb, size_t pb_size) {
-    for (size_t i = 0; i < pb_size; i++) {
-        piece p = pb[i];
-        Vector2 pos = {p.x, p.y};
-        coord_to_px(&pos);
-        DrawTextureV(p.tx, pos, WHITE);
+void pieces_draw(piece pcs[NUM_ROW][NUM_COL]) {
+    for (int row = 0; row < NUM_PC; row++) {
+    	for (int col = 0; col < NUM_PT; col++) {
+	        piece p = pcs[row][col];
+	        cell pos = p.c;
+	        cell_to_px(&pos);
+	        DrawTextureV(*p.tx, (Vector2){pos.x,pos.y}, WHITE);
+	}
     }
 }
 
-size_t moves_gen_p(piece *p, piece *pb, move *mv) {
-    (void) pb;
+void moves_gen_p(piece *p) {
     piece_color pc = p->pc;
-    int starting_row = pc == pc_WHITE ? 6 : 1;
+    move *moves = p->moves;
+    int starting_row = pc == pc_W ? 6 : 1;
     int mv_counter = 0;
-    if (p->y == starting_row) {
-        if (pc == pc_WHITE) {
-            mv[mv_counter++] = (move) {0, -2};
-            mv[mv_counter++] = (move) {0, -1};
+    if (p->c.y == starting_row) {
+        if (pc == pc_W) {
+            moves[mv_counter++] = (move) {0, -2};
+            moves[mv_counter++] = (move) {0, -1};
         } else {
-            mv[mv_counter++] = (move) {0, 2};
-            mv[mv_counter++] = (move) {0, 1};
+            moves[mv_counter++] = (move) {0, 2};
+            moves[mv_counter++] = (move) {0, 1};
         }
     } else {
-        mv[mv_counter++] = pc == pc_WHITE ? (move) {0, -1} : (move) {0, 1};
+        moves[mv_counter++] = pc == pc_W ? (move) {0, -1} : (move) {0, 1};
     }
-    return mv_counter;
+    p->moves_size = mv_counter;
 }
 
-size_t moves_gen_n(piece *p, piece *pb, move *moves) {
-    (void) p;
-    (void) pb;
-    (void) moves;
-    return 0;
-}
-
-size_t moves_gen_b(piece *p, piece *pb, move *moves) {
-    (void) p;
-    (void) pb;
-    (void) moves;
-    return 0;
-}
-
-size_t moves_gen_r(piece *p, piece *pb, move *moves) {
-    (void) p;
-    (void) pb;
-    (void) moves;
-    return 0;
-}
-
-size_t moves_gen_q(piece *p, piece *pb, move *moves) {
-    (void) p;
-    (void) pb;
-    (void) moves;
-    return 0;
-}
-
-size_t moves_gen_k(piece *p, piece *pb, move *moves) {
-    (void) p;
-    (void) pb;
-    (void) moves;
-    return 0;
-}
-
-size_t moves_generate(piece *p, moves_gen **mdt, piece *pb, move *moves) {
+void moves_gen_n(piece *p) {(void) p;}
+void moves_gen_b(piece *p) {(void) p;}
+void moves_gen_r(piece *p) {(void) p;}
+void moves_gen_q(piece *p) {(void) p;}
+void moves_gen_k(piece *p) {(void) p;}
+void moves_generate(piece *p, moves_gen **mdt) {
     piece_type pt = p->pt;
-
-    return mdt[pt](p, pb, moves);
+    mdt[pt](p);
 }
 
-void moves_display(piece *p, move *moves, size_t moves_size) {
-    Vector2 pos = {p->x, p->y};
-
-    for (size_t i = 0; i < moves_size; i++) {
-        Vector2 v = {pos.x + moves[i].x + .5, pos.y + moves[i].y + .5};
-        coord_to_px(&v);
-        DrawCircleV(v, 5.0, GRAY);
-    }
+void moves_display(piece *sel_p) {
+	cell c = sel_p->c;
+	move *moves = sel_p->moves;
+	int ms = sel_p->moves_size;
+	for (int i=0;i<ms;i++) {
+		cell new = (cell){c.x+moves[i].x,c.y+moves[i].y};
+		cell_to_px(&new);
+		DrawCircleV((Vector2){new.x,new.y}, 5.0, GRAY);
+	}
 }
 
-void get_piece_at_coord(Vector2 *c, piece *p, piece *pb, size_t pb_size) {
-    for (size_t i = 0; i < pb_size; i++) {
-        if (c->x == pb[i].x && c->y == pb[i].y) { *p = pb[i]; }
-    }
+int is_click(Vector2 *mp) {
+	*mp = GetMousePosition();
+	if (IsMouseButtonPressed(0)) return 1;
+	else return 0;
 }
 
-void cell_clicked(Vector2 *v) {
-    Vector2 mp = GetMousePosition();
-    int cell_x = mp.x / CELL_SIZE_PX;
-    int cell_y = mp.y / CELL_SIZE_PX;
-
-    if (IsMouseButtonPressed(0)) { *v = (Vector2) {cell_x, cell_y}; }
+void cell_set(cell *c, Vector2 *mp) {
+	*c = (cell){mp->x/CELL_SIZE_PX,mp->y/CELL_SIZE_PX};
 }
 
 int game_loop() {
-    Texture2D textures_buf[NUM_TEXTURES] = {0};
-    piece pieces_buf[MAX_PIECES] = {0};
-    moves_gen *mdt[6] = {
-        moves_gen_p,
-        moves_gen_n,
-        moves_gen_b,
-        moves_gen_r,
-        moves_gen_q,
-        moves_gen_k,
-    };
+	Texture2D textures[NUM_PC][NUM_PT] = {0};
+	Texture2D tx_board = {0};
+	piece pieces[NUM_ROW][NUM_COL] = {0};
+	moves_gen *mdt[NUM_PT] = {
+		moves_gen_p,moves_gen_n,moves_gen_b,
+		moves_gen_r,moves_gen_q,moves_gen_k
+	};
+	int board_state[NUM_ROW][NUM_COL] = {
+		{BR,BN,BB,BQ,BK,BB,BN,BR},
+		{BP,BP,BP,BP,BP,BP,BP,BP},
+		{NO,NO,NO,NO,NO,NO,NO,NO},
+		{NO,NO,NO,NO,NO,NO,NO,NO},
+		{NO,NO,NO,NO,NO,NO,NO,NO},
+		{NO,NO,NO,NO,NO,NO,NO,NO},
+		{WP,WP,WP,WP,WP,WP,WP,WP},
+		{WR,WN,WB,WQ,WK,WB,WN,WR},
+	};
+	cell sel_c = {-1, -1};
+	piece sel_p = {0};
+	Vector2 mouse_pos = {0};
 
-    Vector2 sel_c = {-1, -1};
-    piece sel_p = {0};
-    move moves[MAX_MOVES] = {0};
-    size_t moves_size = 0;
+	InitWindow(WIDTH_BOARD, HEIGHT_BOARD, "chess");
+	SetTargetFPS(TARGET_FPS);
+	textures_load(textures, &tx_board);
+	pieces_init(pieces, textures, board_state);
 
-    InitWindow(WIDTH_BOARD, HEIGHT_BOARD, "chess");
-    SetTargetFPS(TARGET_FPS);
-    textures_load((Texture2D *) textures_buf);
-    pieces_buffer_init((piece *) &pieces_buf, (Texture2D *) &textures_buf);
+	while (!WindowShouldClose()) {
+	        BeginDrawing();
+	        ClearBackground(WHITE);
 
-    while (!WindowShouldClose()) {
+	        board_draw(&tx_board);
+	        pieces_draw(pieces);
 
-        BeginDrawing();
-        ClearBackground(WHITE);
+	        if (is_click(&mouse_pos)) {
+			cell_set(&sel_c, &mouse_pos);
+			moves_generate(&sel_p,(moves_gen**)&mdt);
+	        }
 
-        board_draw((Texture2D *) &textures_buf[12]);
-        pieces_draw((piece *) &pieces_buf, MAX_PIECES);
+	        EndDrawing();
+	}
 
-        cell_clicked(&sel_c);
-        if (sel_c.x != -1) {
-            get_piece_at_coord(
-                &sel_c, &sel_p, (piece *) &pieces_buf, MAX_PIECES);
-            moves_size = moves_generate(&sel_p, (moves_gen **) &mdt,
-                (piece *) &pieces_buf, (move *) moves);
-            moves_display((piece *) &sel_p, (move *) moves, moves_size);
-        }
-
-        EndDrawing();
-    }
-
-    textures_unload((Texture2D *) textures_buf, NUM_TEXTURES);
-    CloseWindow();
-    return 0;
+	textures_unload(textures, &tx_board);
+	CloseWindow();
+	return 0;
 }

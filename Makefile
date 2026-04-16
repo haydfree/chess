@@ -1,6 +1,6 @@
-CC=			cc
+CC=		cc
 CPPFLAGS=	
-CFLAGS=		-std=c99 -g -O2 -Wall -Werror -Wextra -pedantic -fno-omit-frame-pointer
+CFLAGS=		-std=c99 -g -O2 -Wall -Werror -Wextra -pedantic
 LIBS=		-lraylib -lm
 LDFLAGS=	
 TARGET=		chess
