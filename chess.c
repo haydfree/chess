@@ -11,14 +11,10 @@
 #define CELL_SIZE_PX (WIDTH_BOARD / NUM_COL)
 #define PATH_TX "assets"
 
-typedef enum piece_color { pc_W, pc_B } piece_color;
-typedef enum piece_type { pt_P, pt_N, pt_B, pt_R, pt_Q, pt_K } piece_type;
+typedef enum piece_color { pc_NONE=-1,pc_W=0, pc_B=1 } piece_color;
+typedef enum piece_type { pt_NONE=-1,pt_P=0,pt_N=1,pt_B=2,
+	pt_R=3,pt_Q=4,pt_K=5 } piece_type;
 typedef enum piece_captured { pcap_FALSE, pcap_TRUE } piece_captured;
-typedef enum piece_idx {
-	WP, WN, WB, WR, WQ, WK,
-	BP, BN, BB, BR, BQ, BK,
-	NO=-1
-} piece_idx;
 typedef struct pct { piece_color pc; piece_type pt; } pct;
 typedef struct cell {int x, y;} cell;
 typedef struct move {int x, y;} move;
@@ -29,39 +25,26 @@ typedef struct piece {
 	piece_captured pcap;
 	move moves[MAX_MOVES];
 	int moves_size;
+	int active;
 	Texture2D *tx;
 } piece;
 typedef void moves_gen(piece *p);
 
-pct pi_to_pct(piece_idx pi) {
-	pct res = {0};
+void pieces_init(piece pcs[NUM_ROW][NUM_COL], Texture2D txs[NUM_PC][NUM_PT]) {
+	pct board_state[NUM_ROW][NUM_COL]={{ {pc_B,pt_R},{pc_B,pt_N},{pc_B,pt_B},{pc_B,pt_Q},{pc_B,pt_K},{pc_B,pt_B},{pc_B,pt_N},{pc_B,pt_R} },{ {pc_B,pt_P},{pc_B,pt_P},{pc_B,pt_P},{pc_B,pt_P},{pc_B,pt_P},{pc_B,pt_P},{pc_B,pt_P},{pc_B,pt_P} },{ {pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE} },{ {pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE} },{ {pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE} },{ {pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE},{pc_NONE,pt_NONE} },{ {pc_W,pt_P},{pc_W,pt_P},{pc_W,pt_P},{pc_W,pt_P},{pc_W,pt_P},{pc_W,pt_P},{pc_W,pt_P},{pc_W,pt_P} },{ {pc_W,pt_R},{pc_W,pt_N},{pc_W,pt_B},{pc_W,pt_Q},{pc_W,pt_K},{pc_W,pt_B},{pc_W,pt_N},{pc_W,pt_R} }};	
 
-	if (pi<=5&&pi!=NO) res.pc=pc_W;
-	else if (pi>=6) res.pc=pc_B;
-
-	if (pi%6==0) res.pt=pt_P;
-	else if (pi%6==1) res.pt=pt_K;
-	else if (pi%6==2) res.pt=pt_B;
-	else if (pi%6==3) res.pt=pt_R;
-	else if (pi%6==4) res.pt=pt_Q;
-	else if (pi%6==5) res.pt=pt_K;
-
-	return res;
-}
-
-void pieces_init(piece pcs[NUM_ROW][NUM_COL], 
-	Texture2D txs[NUM_PC][NUM_PT], 
-	int board[NUM_ROW][NUM_COL]) {
 	for (int row=0;row<NUM_ROW;row++) {
 		for (int col=0;col<NUM_COL;col++) {
-			pct piece_info = pi_to_pct(board[row][col]);
+			pct v_pct = board_state[row][col];
+			if (v_pct.pc==-1||v_pct.pt==-1) continue;
 			pcs[row][col] = (piece) {
 				.c=(cell){col, row}, 
-				.pc=piece_info.pc, 
-				.pt=piece_info.pt,
+				.pc=v_pct.pc,
+				.pt=v_pct.pt,
 				.pcap=pcap_FALSE, 
 				.moves_size=0, 
-				.tx=&txs[row][col]
+				.active=1,
+				.tx=&txs[v_pct.pc][v_pct.pt]
 			};
 		}
 	}
@@ -94,12 +77,13 @@ void cell_to_px(cell *c) {
 }
 
 void pieces_draw(piece pcs[NUM_ROW][NUM_COL]) {
-    for (int row = 0; row < NUM_PC; row++) {
-    	for (int col = 0; col < NUM_PT; col++) {
+    for (int row = 0; row < NUM_ROW; row++) {
+    	for (int col = 0; col < NUM_COL; col++) {
 	        piece p = pcs[row][col];
 	        cell pos = p.c;
 	        cell_to_px(&pos);
-	        DrawTextureV(*p.tx, (Vector2){pos.x,pos.y}, WHITE);
+	        if (p.active)
+		        DrawTextureV(*p.tx, (Vector2){pos.x,pos.y}, WHITE);
 	}
     }
 }
@@ -162,16 +146,6 @@ int game_loop() {
 		moves_gen_p,moves_gen_n,moves_gen_b,
 		moves_gen_r,moves_gen_q,moves_gen_k
 	};
-	int board_state[NUM_ROW][NUM_COL] = {
-		{BR,BN,BB,BQ,BK,BB,BN,BR},
-		{BP,BP,BP,BP,BP,BP,BP,BP},
-		{NO,NO,NO,NO,NO,NO,NO,NO},
-		{NO,NO,NO,NO,NO,NO,NO,NO},
-		{NO,NO,NO,NO,NO,NO,NO,NO},
-		{NO,NO,NO,NO,NO,NO,NO,NO},
-		{WP,WP,WP,WP,WP,WP,WP,WP},
-		{WR,WN,WB,WQ,WK,WB,WN,WR},
-	};
 	cell sel_c = {-1, -1};
 	piece sel_p = {0};
 	Vector2 mouse_pos = {0};
@@ -179,7 +153,7 @@ int game_loop() {
 	InitWindow(WIDTH_BOARD, HEIGHT_BOARD, "chess");
 	SetTargetFPS(TARGET_FPS);
 	textures_load(textures, &tx_board);
-	pieces_init(pieces, textures, board_state);
+	pieces_init(pieces, textures);
 
 	while (!WindowShouldClose()) {
 	        BeginDrawing();
