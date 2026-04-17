@@ -134,7 +134,6 @@ void moves_gen_all(piece pcs[NUM_ROW][NUM_COL], fp_moves_gen **mdt) {
 void move_make(piece cp[2]) {
 	piece *p1=&cp[0], *p2=&cp[1];
 	p1->c=p2->c;
-	p2->c=(cell){-1,-1}
 }
 
 void cell_add_move(cell *c, move *m) {
