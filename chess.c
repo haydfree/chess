@@ -161,14 +161,11 @@ int is_click(Vector2 *mp) {
 
 void get_piece_clicked(Vector2 *mp, piece pcs[NUM_ROW][NUM_COL], piece *sp) {
 	cell c = (cell){mp->x/CELL_SIZE_PX,mp->y/CELL_SIZE_PX};
-	piece p; 
+	piece *p; 
 	for (int row=0;row<NUM_ROW;row++) {
 		for (int col=0;col<NUM_COL;col++) {
-			p=pcs[row][col];
-			if (p.c.x==c.x&&p.c.y==c.y) {
-				*sp=p;
-
-			}
+			p=&pcs[row][col];
+			if (p->c.x==c.x&&p->c.y==c.y) *sp=*p;
 		}
 	}
 }
@@ -184,6 +181,7 @@ int game_loop() {
 	piece sp = {0};
 	Vector2 mouse_pos = {0};
 	int flag_gen = 1;
+	int flag_moving = 0;
 
 	InitWindow(WIDTH_BOARD, HEIGHT_BOARD, "chess");
 	SetTargetFPS(TARGET_FPS);
@@ -200,8 +198,10 @@ int game_loop() {
 	        	moves_gen_all(pieces, (fp_moves_gen**)mdt);
 	        	flag_gen=0;
 	        }
-	        if (is_click(&mouse_pos)) 
+	        if (is_click(&mouse_pos)) {
+	        	flag_moving = 1;
 	        	get_piece_clicked(&mouse_pos, pieces, &sp);
+	        }
 		moves_draw(&sp);
 
 	        EndDrawing();
