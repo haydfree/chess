@@ -1,9 +1,9 @@
 CC=		cc
 CPPFLAGS=	
-DBGFLAGS=	-g -fsanitize=address -fno-omit-frame-pointer
+DBGFLAGS=	-g
 CFLAGS=		-O0 -std=c99 -Wall -Werror -Wextra -pedantic ${DBGFLAGS}
-LIBS=		-lraylib -lm -lasan
-LDFLAGS=	${LIBS} -fsanitize=address -fno-omit-frame-pointer
+LIBS=		-lraylib -lm
+LDFLAGS=	${LIBS}
 TARGET=		chess
 SRC=		main.c chess.c	
 OBJ=		${SRC:.c=.o}

@@ -36,21 +36,24 @@ void pieces_init(piece pcs[NUM_ROW][NUM_COL], Texture2D txs[NUM_PC][NUM_PT]) {
 	for (int row=0;row<NUM_ROW;row++) {
 		for (int col=0;col<NUM_COL;col++) {
 			pct v_pct = board_state[row][col];
-			if (v_pct.pc==-1||v_pct.pt==-1) continue;
-			pcs[row][col] = (piece) {
+			piece *p = &pcs[row][col];
+			*p=(piece) {
 				.c=(cell){col, row}, 
 				.pc=v_pct.pc,
 				.pt=v_pct.pt,
 				.pcap=pcap_FALSE, 
 				.moves_size=0, 
-				.active=1,
-				.tx=&txs[v_pct.pc][v_pct.pt]
 			};
+			if (v_pct.pc==-1||v_pct.pt==-1) p->active=0;
+			else {
+				p->active=1;
+				p->tx=&txs[p->pc][p->pt];
+			}
 		}
 	}
 }
 
-void textures_load(Texture2D txs[NUM_PC][NUM_PT], Texture2D *txb) {
+void tx_load(Texture2D txs[NUM_PC][NUM_PT], Texture2D *txb) {
 	for (int pc=pc_W;pc<NUM_PC;pc++) {
 		for (int pt=pt_P;pt<NUM_PT;pt++) {
 			txs[pc][pt]=LoadTexture(
@@ -60,7 +63,7 @@ void textures_load(Texture2D txs[NUM_PC][NUM_PT], Texture2D *txb) {
     	*txb = LoadTexture(TextFormat("%s/board.png",PATH_TX));
 }
 
-void textures_unload(Texture2D txs[NUM_PC][NUM_PT], Texture2D *txb) {
+void tx_unload(Texture2D txs[NUM_PC][NUM_PT], Texture2D *txb) {
 	for (int pc=pc_W;pc<NUM_PC;pc++) {
 		for (int pt=pt_P;pt<NUM_PT;pt++) {
 			UnloadTexture(txs[pc][pt]);
@@ -71,23 +74,28 @@ void textures_unload(Texture2D txs[NUM_PC][NUM_PT], Texture2D *txb) {
 
 void board_draw(Texture2D *txb) {DrawTexture(*txb,0,0,WHITE);}
 
-void cell_to_px(cell *c, int centered) {
-	c->x = c->x * CELL_SIZE_PX;
-	c->y = c->y * CELL_SIZE_PX;
+void px_to_cell(Vector2 *v, cell *c) {
+	*c=(cell){v->x/CELL_SIZE_PX,v->y/CELL_SIZE_PX};
+}
+
+void cell_to_px(cell *c, Vector2 *v, int centered) {
+	Vector2 tmp = (Vector2){c->x*CELL_SIZE_PX,c->y*CELL_SIZE_PX};
 	if (centered) {
-		c->x+=CELL_SIZE_PX/2;
-		c->y+=CELL_SIZE_PX/2;
+		tmp.x+=CELL_SIZE_PX/2;
+		tmp.y+=CELL_SIZE_PX/2;
 	}
+	*v = tmp;
 }
 
 void pieces_draw(piece pcs[NUM_ROW][NUM_COL]) {
     for (int row = 0; row < NUM_ROW; row++) {
     	for (int col = 0; col < NUM_COL; col++) {
 	        piece p = pcs[row][col];
-	        cell pos = p.c;
-	        cell_to_px(&pos,0);
-	        if (p.active)
-		        DrawTextureV(*p.tx, (Vector2){pos.x,pos.y}, WHITE);
+	        if (p.active) {
+		        Vector2 v={0};
+		        cell_to_px(&p.c,&v,0);
+	        	DrawTextureV(*p.tx, v, WHITE);
+	        }
 	}
     }
 }
@@ -96,20 +104,18 @@ void moves_gen_p(piece *p) {
 	piece_color pc = p->pc;
 	move *moves = p->moves;
 	int starting_row = pc == pc_W ? 6 : 1;
-	int mv_counter = 0;
 	if (p->c.y == starting_row) {
 		if (pc == pc_W) {
-			moves[mv_counter++] = (move) {0, -2};
-			moves[mv_counter++] = (move) {0, -1};
+			moves[p->moves_size++] = (move) {0, -2};
+			moves[p->moves_size++] = (move) {0, -1};
 		} else {
-			moves[mv_counter++] = (move) {0, 2};
-			moves[mv_counter++] = (move) {0, 1};
+			moves[p->moves_size++] = (move) {0, 2};
+			moves[p->moves_size++] = (move) {0, 1};
 		}
 	} else {
-		moves[mv_counter++] = pc == pc_W ? (move) {0, -1} 
+		moves[p->moves_size++] = pc == pc_W ? (move) {0, -1} 
 			: (move) {0, 1};
 	}
-	p->moves_size = mv_counter;
 }
 
 void moves_gen_n(piece *p) {(void) p;}
@@ -120,20 +126,27 @@ void moves_gen_k(piece *p) {(void) p;}
 void moves_gen_all(piece pcs[NUM_ROW][NUM_COL], fp_moves_gen **mdt) {
 	for (int row=0;row<NUM_ROW;row++) {
 		for (int col=0;col<NUM_COL;col++) {
-			piece p=pcs[row][col];
-			if (p.active) mdt[p.pt](&p);
+			piece *p=&pcs[row][col];
+			if (p->active) mdt[p->pt](p);
 		}
 	}
 }
 
-void moves_draw(piece *sel_p) {
-	cell c = sel_p->c;
-	move *moves = sel_p->moves;
-	int ms = sel_p->moves_size;
+void cell_add_move(cell *c, move *m) {
+	c->x+=m->x;
+	c->y+=m->y;
+}
+
+void moves_draw(piece *sp) {
+	move *moves = sp->moves;
+	int ms = sp->moves_size;
 	for (int i=0;i<ms;i++) {
-		cell new = (cell){c.x+moves[i].x,c.y+moves[i].y};
-		cell_to_px(&new, 1);
-		DrawCircleV((Vector2){new.x,new.y}, 5.0, GRAY);
+		cell c = sp->c;
+	        move m=moves[i];
+		Vector2 v={0};
+		cell_add_move(&c,&m);
+		cell_to_px(&c,&v,1);
+		DrawCircleV(v, 5.0, GRAY);
 	}
 }
 
@@ -146,32 +159,36 @@ int is_click(Vector2 *mp) {
 	return ret;
 }
 
-void get_piece_clicked(Vector2 *mp, piece pcs[NUM_ROW][NUM_COL], piece *sel_p) {
+void get_piece_clicked(Vector2 *mp, piece pcs[NUM_ROW][NUM_COL], piece *sp) {
 	cell c = (cell){mp->x/CELL_SIZE_PX,mp->y/CELL_SIZE_PX};
+	piece p; 
 	for (int row=0;row<NUM_ROW;row++) {
 		for (int col=0;col<NUM_COL;col++) {
-			piece p=pcs[row][col];
-			if (p.c.x==c.x&&p.c.y==c.y) *sel_p=p;
+			p=pcs[row][col];
+			if (p.c.x==c.x&&p.c.y==c.y) {
+				*sp=p;
+
+			}
 		}
 	}
 }
 
 int game_loop() {
-	Texture2D textures[NUM_PC][NUM_PT] = {0};
+	Texture2D tx_pieces[NUM_PC][NUM_PT] = {0};
 	Texture2D tx_board = {0};
 	piece pieces[NUM_ROW][NUM_COL] = {0};
 	fp_moves_gen *mdt[NUM_PT] = {
 		moves_gen_p,moves_gen_n,moves_gen_b,
 		moves_gen_r,moves_gen_q,moves_gen_k
 	};
-	piece sel_p = {0};
+	piece sp = {0};
 	Vector2 mouse_pos = {0};
 	int flag_gen = 1;
 
 	InitWindow(WIDTH_BOARD, HEIGHT_BOARD, "chess");
 	SetTargetFPS(TARGET_FPS);
-	textures_load(textures, &tx_board);
-	pieces_init(pieces, textures);
+	tx_load(tx_pieces, &tx_board);
+	pieces_init(pieces, tx_pieces);
 
 	while (!WindowShouldClose()) {
 	        BeginDrawing();
@@ -184,13 +201,13 @@ int game_loop() {
 	        	flag_gen=0;
 	        }
 	        if (is_click(&mouse_pos)) 
-	        	get_piece_clicked(&mouse_pos, pieces, &sel_p);
-		moves_draw(&sel_p);
+	        	get_piece_clicked(&mouse_pos, pieces, &sp);
+		moves_draw(&sp);
 
 	        EndDrawing();
 	}
 
-	textures_unload(textures, &tx_board);
+	tx_unload(tx_pieces, &tx_board);
 	CloseWindow();
 	return 0;
 }
