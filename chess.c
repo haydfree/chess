@@ -131,6 +131,7 @@ void moves_gen_all(piece pcs[NUM_ROW][NUM_COL], fp_moves_gen **mdt) {
 		}
 	}
 }
+void make_move() {}
 
 void cell_add_move(cell *c, move *m) {
 	c->x+=m->x;
@@ -159,15 +160,37 @@ int is_click(Vector2 *mp) {
 	return ret;
 }
 
-void get_piece_clicked(Vector2 *mp, piece pcs[NUM_ROW][NUM_COL], piece *sp) {
-	cell c = (cell){mp->x/CELL_SIZE_PX,mp->y/CELL_SIZE_PX};
+void get_piece_clicked(Vector2 *mp, piece pcs[NUM_ROW][NUM_COL], piece cp[2]) {
+	cell c;
 	piece *p; 
+	px_to_cell(mp,&c);
 	for (int row=0;row<NUM_ROW;row++) {
 		for (int col=0;col<NUM_COL;col++) {
 			p=&pcs[row][col];
-			if (p->c.x==c.x&&p->c.y==c.y) *sp=*p;
+			if (p->c.x==c.x&&p->c.y==c.y) {
+				cp[0] = cp[1];
+				cp[1] = *p;
+			}
 		}
 	}
+}
+
+int is_valid_move(piece cp[2]) {
+	int ret = 0;
+	piece p1=cp[0],p2=cp[1];
+	int ms=p1.moves_size;
+
+	for (int i=0;i<ms;i++) {
+		move m=p1.moves[i];
+		cell c=p1.c;
+		cell_add_move(&c,&m);
+		if (p2.c.x==c.x&&p2.c.y==c.y) {
+			ret=1;
+			goto cleanup;
+		}
+	}
+cleanup:
+	return ret;
 }
 
 int game_loop() {
@@ -178,10 +201,10 @@ int game_loop() {
 		moves_gen_p,moves_gen_n,moves_gen_b,
 		moves_gen_r,moves_gen_q,moves_gen_k
 	};
-	piece sp = {0};
+	piece clicked_pcs[2] = {0};
 	Vector2 mouse_pos = {0};
 	int flag_gen = 1;
-	int flag_moving = 0;
+	//int flag_moving = 0;
 
 	InitWindow(WIDTH_BOARD, HEIGHT_BOARD, "chess");
 	SetTargetFPS(TARGET_FPS);
@@ -199,10 +222,12 @@ int game_loop() {
 	        	flag_gen=0;
 	        }
 	        if (is_click(&mouse_pos)) {
-	        	flag_moving = 1;
-	        	get_piece_clicked(&mouse_pos, pieces, &sp);
+			get_piece_clicked(&mouse_pos, pieces, clicked_pcs);
+		        if (is_valid_move(clicked_pcs)) {
+				make_move();
+		        }
 	        }
-		moves_draw(&sp);
+		moves_draw(&clicked_pcs[1]);
 
 	        EndDrawing();
 	}
