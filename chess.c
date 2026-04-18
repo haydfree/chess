@@ -30,8 +30,10 @@ typedef struct game {
 	move p_moves[MAX_MOVE_MOVES];
 	board board;
 	piece_color turn;
-	int score;
+	int score, flag_moving, flag_gen;
+	coord ck_buf[2];
 	size_t mc, p_mc;
+	Vector2 mouse_pos;
 } game;
 typedef struct textures {
 	Texture2D pieces[NUM_PC][NUM_PT];
@@ -179,9 +181,9 @@ void clear_square(square *s) {
 	s->pt=pt_NONE;
 }
 
-void move_make(board *b, move *m) {
-	square *start=&b->squares[m->start.row][m->start.col];
-	square *end=&b->squares[m->end.row][m->end.col];
+void move_make(board *b, coord cb[2]) {
+	square *start=&b->squares[cb[0].row][cb[0].col];
+	square *end=&b->squares[cb[1].row][cb[1].col];
 	*end=*start;
 	clear_square(start);
 }
@@ -205,14 +207,45 @@ int is_click(Vector2 *mp) {
 	return ret;
 }
 
-void clear_mbuf(move *mbuf, size_t s) {
-	for (size_t i=0;i<s;i++) {
+int is_piece_click(board *b, Vector2 *mp, coord cb[2]) {
+	int ret=0;
+	if (!is_click(mp)) {
+		ret=0;
+		goto cleanup;
+	}
+	coord new={0};
+	px_to_coord(mp, &new);
+	cb[1]=cb[0];
+	cb[0]=new;
+	if (b->squares[cb[0].row][cb[0].col].pc!=pc_NONE) ret=1;
+cleanup:
+	return ret;
+}
+
+void clear_mbuf(move *mbuf, size_t *s) {
+	for (size_t i=0;i<*s;i++) {
 		mbuf[i] = (move) {
 			.start=(coord){-1,-1},
 			.end=(coord){-1,-1},
 			.pcap=pcap_FALSE
 		};
 	}
+	*s=0;
+}
+
+int is_valid_move(move *moves, size_t s, coord cb[2]) {
+	int ret = 0;
+	for (size_t i=0;i<s;i++) {
+		if (cb[0].row==moves[i].start.row&&\
+			cb[0].col==moves[i].start.col&&\
+			cb[1].row==moves[i].end.row&&\
+			cb[1].col==moves[i].end.col) {
+				ret=1;
+				goto cleanup;
+			}
+	}
+cleanup:
+	return ret;
 }
 
 int game_loop() {
@@ -227,9 +260,7 @@ int game_loop() {
 	InitWindow(WIDTH_BOARD, HEIGHT_BOARD, "chess");
 	SetTargetFPS(TARGET_FPS);
 
-	int flag_gen = 1;
-	Vector2 mp = {0};
-	coord c = {0};
+	gm.flag_gen=1;
 	gm.turn=pc_W;
 
 	board_init(&bd);
@@ -240,17 +271,20 @@ int game_loop() {
 	        ClearBackground(WHITE);
 
 	        board_draw(&bd, &tx);
-	        if (flag_gen) {
-	        	clear_mbuf(gm.p_moves, gm.p_mc);
+	        if (gm.flag_gen) {
+	        	clear_mbuf(gm.p_moves, &gm.p_mc);
 	        	moves_gen_all(&bd,gm.turn,gm.p_moves,&gm.p_mc,
 	        		(mv_vtable**)mvt);
-	        	flag_gen=0;
+	        	gm.flag_gen=0;
 	        }
 
-	        if (is_click(&mp)) {
-	        	px_to_coord(&mp, &c);
-	        }
-	        moves_draw(gm.p_moves, gm.p_mc, &c);
+	        if (is_piece_click(&bd, &gm.mouse_pos, gm.ck_buf))
+	        	gm.flag_moving=!gm.flag_moving;
+	        if (is_valid_move(gm.p_moves, gm.p_mc, gm.ck_buf)) {
+	        	if (gm.flag_moving)
+		        	move_make(&bd, gm.ck_buf);
+		}
+	        moves_draw(gm.p_moves, gm.p_mc, &gm.ck_buf[0]);
 
 	        EndDrawing();
 	}
