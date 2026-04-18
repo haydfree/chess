@@ -1,6 +1,6 @@
 #include "chess.h"
 
-#define MAX_MOVE_MOVES 20
+#define MAX_MOVE_MOVES 256
 #define MAX_GAME_MOVES 1024
 #define TARGET_FPS 20
 #define WIDTH_BOARD 600
@@ -118,7 +118,7 @@ void flip_deltas(coord *d, size_t ds) {
 	for (size_t i=0;i<ds;i++) {
 		coord new={0};
 		new.row=d[i].row*-1;
-		new.col=d[i].col*-1;
+		new.col=d[i].col;
 		d[i]=new;
 	}
 }
@@ -131,15 +131,15 @@ void moves_gen_p(board *b, piece_color pc, move *mbuf, size_t *mc) {
 	for (int row=0;row<NUM_ROW;row++) {
 		for (int col=0;col<NUM_COL;col++) {
 			square s=b->squares[row][col];
-			if (s.pc!=pc) continue;
+			if (s.pc!=pc||s.pt!=pt_P) continue;
 			for (size_t d=0;d<ds;d++) {
-				coord c={0};
+				coord c={row,col};
 				piece_captured pcap = pcap_FALSE;
 				coord_add(&c,&deltas[d]);
 				if (is_ob(&c)) continue;
 				if (b->squares[c.row][c.col].pc!=pc_NONE)
 					pcap = pcap_TRUE;
-				mbuf[*mc++]= (move) {
+				mbuf[(*mc)++]= (move) {
 					.start=(coord){row,col},
 					.end=c,
 					.pcap=pcap
@@ -191,7 +191,7 @@ void moves_draw(move *moves, size_t s, coord *c) {
 		if (moves[i].start.row!=c->row||moves[i].start.col!=c->col)
 			continue;
 		Vector2 v={0};
-		coord_to_px(&moves[i].start,&v,1);
+		coord_to_px(&moves[i].end,&v,1);
 		DrawCircleV(v, 5.0, GRAY);
 	}
 }
@@ -202,22 +202,6 @@ int is_click(Vector2 *mp) {
 		*mp = GetMousePosition();
 		ret = 1;
 	}
-	return ret;
-}
-
-int is_valid_move(move *m, move *moves, size_t s) {
-	int ret = 0;
-
-	for (size_t i=0;i<s;i++) {
-		if (m->start.row==moves[i].start.row \
-			&& m->start.col==moves[i].start.col \
-			&& m->end.row==moves[i].end.row \
-			&& m->end.col==moves[i].end.col) {
-				ret = 1;
-				goto cleanup;
-			}
-	}
-cleanup:
 	return ret;
 }
 
@@ -265,8 +249,8 @@ int game_loop() {
 
 	        if (is_click(&mp)) {
 	        	px_to_coord(&mp, &c);
-		        moves_draw(gm.p_moves, gm.p_mc, &c);
 	        }
+	        moves_draw(gm.p_moves, gm.p_mc, &c);
 
 	        EndDrawing();
 	}
