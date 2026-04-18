@@ -38,7 +38,7 @@ typedef struct textures {
 	Texture2D board;
 } textures;
 
-typedef void mv_vtable(board *, move[MAX_MOVE_MOVES]);
+typedef void mv_vtable(board*,piece_color,move[MAX_MOVE_MOVES],size_t*);
 
 void board_init(board *b) {
 square initial_b[8][8]={
@@ -102,17 +102,74 @@ void board_draw(board *b, textures *t) {
 	}
 }
 
-void moves_gen_p(board *b, move *mbuf) {(void)b;(void)mbuf;}
-void moves_gen_n(board *b, move *mbuf) {(void)b;(void)mbuf;}
-void moves_gen_b(board *b, move *mbuf) {(void)b;(void)mbuf;}
-void moves_gen_r(board *b, move *mbuf) {(void)b;(void)mbuf;}
-void moves_gen_q(board *b, move *mbuf) {(void)b;(void)mbuf;}
-void moves_gen_k(board *b, move *mbuf) {(void)b;(void)mbuf;}
-void moves_gen_all(board *b, move mbuf[MAX_MOVE_MOVES], mv_vtable **mvt) {
+void coord_add(coord *a, coord *b) {
+	coord new = {0};
+	new.row = a->row+b->row;
+	new.col = a->col+b->col;
+	*a=new;
+}
+
+int is_ob(coord *a) {
+	if (a->row>=NUM_ROW||a->row<0||a->col>=NUM_COL||a->col<0) return 1;
+	return 0;
+}
+
+void flip_deltas(coord *d, size_t ds) {
+	for (size_t i=0;i<ds;i++) {
+		coord new={0};
+		new.row=d[i].row*-1;
+		new.col=d[i].col*-1;
+		d[i]=new;
+	}
+}
+
+void moves_gen_p(board *b, piece_color pc, move *mbuf, size_t *mc) {
+	const size_t ds=4;
+	coord deltas[]={{1,-1},{1,0},{1,1},{2,0}};
+	if (pc==pc_W) flip_deltas(deltas,ds);
+
+	for (int row=0;row<NUM_ROW;row++) {
+		for (int col=0;col<NUM_COL;col++) {
+			square s=b->squares[row][col];
+			if (s.pc!=pc) continue;
+			for (size_t d=0;d<ds;d++) {
+				coord c={0};
+				piece_captured pcap = pcap_FALSE;
+				coord_add(&c,&deltas[d]);
+				if (is_ob(&c)) continue;
+				if (b->squares[c.row][c.col].pc!=pc_NONE)
+					pcap = pcap_TRUE;
+				mbuf[*mc++]= (move) {
+					.start=(coord){row,col},
+					.end=c,
+					.pcap=pcap
+				};
+			}
+		}
+	}
+}
+void moves_gen_n(board *b, piece_color pc, move *mbuf, size_t *mc) {
+	(void)b;(void)pc;(void)mbuf;(void)mc;
+}
+void moves_gen_b(board *b, piece_color pc, move *mbuf, size_t *mc) {
+	(void)b;(void)pc;(void)mbuf;(void)mc;
+}
+void moves_gen_r(board *b, piece_color pc, move *mbuf, size_t *mc) {
+	(void)b;(void)pc;(void)mbuf;(void)mc;
+}
+void moves_gen_q(board *b, piece_color pc, move *mbuf, size_t *mc) {
+	(void)b;(void)pc;(void)mbuf;(void)mc;
+}
+void moves_gen_k(board *b, piece_color pc, move *mbuf, size_t *mc) {
+	(void)b;(void)pc;(void)mbuf;(void)mc;
+}
+void moves_gen_all(board *b,piece_color pc,move mbuf[MAX_MOVE_MOVES],
+	size_t *mc,mv_vtable **mvt) {
 	for (int row=0;row<NUM_ROW;row++) {
 		for (int col=0;col<NUM_COL;col++) {
 			square *s=&b->squares[row][col];
-			if (s->pt!=pt_NONE) mvt[s->pt](b, mbuf);
+			if (s->pt!=pt_NONE&&s->pc==pc) 
+				mvt[s->pt](b,pc,mbuf,mc);
 		}
 	}
 }
@@ -189,6 +246,7 @@ int game_loop() {
 	int flag_gen = 1;
 	Vector2 mp = {0};
 	coord c = {0};
+	gm.turn=pc_W;
 
 	board_init(&bd);
 	textures_init(&tx);
@@ -200,7 +258,8 @@ int game_loop() {
 	        board_draw(&bd, &tx);
 	        if (flag_gen) {
 	        	clear_mbuf(gm.p_moves, gm.p_mc);
-	        	moves_gen_all(&bd, gm.p_moves, (mv_vtable**)mvt);
+	        	moves_gen_all(&bd,gm.turn,gm.p_moves,&gm.p_mc,
+	        		(mv_vtable**)mvt);
 	        	flag_gen=0;
 	        }
 
