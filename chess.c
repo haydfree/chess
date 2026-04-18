@@ -26,14 +26,14 @@ typedef struct move {
 	piece_captured pcap;
 } move;
 typedef struct game {
-	move moves[MAX_GAME_MOVES];
-	move p_moves[MAX_MOVE_MOVES];
-	board board;
+	move m[MAX_GAME_MOVES];
+	move pm[MAX_MOVE_MOVES];
+	board bd;
 	piece_color turn;
-	int score, flag_moving, flag_gen;
-	coord ck_buf[2];
-	size_t mc, p_mc;
-	Vector2 mouse_pos;
+	int score, fm, fg;
+	coord cb[2];
+	size_t mc, pmc;
+	Vector2 mp;
 } game;
 typedef struct textures {
 	Texture2D pieces[NUM_PC][NUM_PT];
@@ -43,7 +43,7 @@ typedef struct textures {
 typedef void mv_vtable(board*,piece_color,move[MAX_MOVE_MOVES],size_t*);
 
 void board_init(board *b) {
-square initial_b[8][8]={
+square initial_b[NUM_ROW][NUM_COL]={
 	{(square){pc_B,pt_R},(square){pc_B,pt_N},(square){pc_B,pt_B},(square){pc_B,pt_Q},(square){pc_B,pt_K},(square){pc_B,pt_B},(square){pc_B,pt_N},(square){pc_B,pt_R}},{(square){pc_B,pt_P},(square){pc_B,pt_P},(square){pc_B,pt_P},(square){pc_B,pt_P},(square){pc_B,pt_P},(square){pc_B,pt_P},(square){pc_B,pt_P},(square){pc_B,pt_P}},{(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE}},{(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE}},{(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE}},{(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE},(square){pc_NONE,pt_NONE}},{(square){pc_W,pt_P},(square){pc_W,pt_P},(square){pc_W,pt_P},(square){pc_W,pt_P},(square){pc_W,pt_P},(square){pc_W,pt_P},(square){pc_W,pt_P},(square){pc_W,pt_P}},{(square){pc_W,pt_R},(square){pc_W,pt_N},(square){pc_W,pt_B},(square){pc_W,pt_Q},(square){pc_W,pt_K},(square){pc_W,pt_B},(square){pc_W,pt_N},(square){pc_W,pt_R}}};
 
 	for (int row=0;row<NUM_ROW;row++) {
@@ -112,8 +112,9 @@ void coord_add(coord *a, coord *b) {
 }
 
 int is_ob(coord *a) {
-	if (a->row>=NUM_ROW||a->row<0||a->col>=NUM_COL||a->col<0) return 1;
-	return 0;
+	int ret = 0;
+	if (a->row>=NUM_ROW||a->row<0||a->col>=NUM_COL||a->col<0) ret=1;
+	return ret;
 }
 
 void flip_deltas(coord *d, size_t ds) {
@@ -125,7 +126,7 @@ void flip_deltas(coord *d, size_t ds) {
 	}
 }
 
-void moves_gen_p(board *b, piece_color pc, move *mbuf, size_t *mc) {
+void moves_gen_p(board *b, piece_color pc, move *pm, size_t *pmc) {
 	const size_t ds=4;
 	coord deltas[]={{1,-1},{1,0},{1,1},{2,0}};
 	if (pc==pc_W) flip_deltas(deltas,ds);
@@ -141,7 +142,7 @@ void moves_gen_p(board *b, piece_color pc, move *mbuf, size_t *mc) {
 				if (is_ob(&c)) continue;
 				if (b->squares[c.row][c.col].pc!=pc_NONE)
 					pcap = pcap_TRUE;
-				mbuf[(*mc)++]= (move) {
+				pm[(*pmc)++]= (move) {
 					.start=(coord){row,col},
 					.end=c,
 					.pcap=pcap
@@ -150,28 +151,28 @@ void moves_gen_p(board *b, piece_color pc, move *mbuf, size_t *mc) {
 		}
 	}
 }
-void moves_gen_n(board *b, piece_color pc, move *mbuf, size_t *mc) {
-	(void)b;(void)pc;(void)mbuf;(void)mc;
+void moves_gen_n(board *b, piece_color pc, move *pm, size_t *pmc) {
+	(void)b;(void)pc;(void)pm;(void)pmc;
 }
-void moves_gen_b(board *b, piece_color pc, move *mbuf, size_t *mc) {
-	(void)b;(void)pc;(void)mbuf;(void)mc;
+void moves_gen_b(board *b, piece_color pc, move *pm, size_t *pmc) {
+	(void)b;(void)pc;(void)pm;(void)pmc;
 }
-void moves_gen_r(board *b, piece_color pc, move *mbuf, size_t *mc) {
-	(void)b;(void)pc;(void)mbuf;(void)mc;
+void moves_gen_r(board *b, piece_color pc, move *pm, size_t *pmc) {
+	(void)b;(void)pc;(void)pm;(void)pmc;
 }
-void moves_gen_q(board *b, piece_color pc, move *mbuf, size_t *mc) {
-	(void)b;(void)pc;(void)mbuf;(void)mc;
+void moves_gen_q(board *b, piece_color pc, move *pm, size_t *pmc) {
+	(void)b;(void)pc;(void)pm;(void)pmc;
 }
-void moves_gen_k(board *b, piece_color pc, move *mbuf, size_t *mc) {
-	(void)b;(void)pc;(void)mbuf;(void)mc;
+void moves_gen_k(board *b, piece_color pc, move *pm, size_t *pmc) {
+	(void)b;(void)pc;(void)pm;(void)pmc;
 }
-void moves_gen_all(board *b,piece_color pc,move mbuf[MAX_MOVE_MOVES],
-	size_t *mc,mv_vtable **mvt) {
+void moves_gen_all(board *b,piece_color pc,move pm[MAX_MOVE_MOVES],
+	size_t *pmc,mv_vtable **mvt) {
 	for (int row=0;row<NUM_ROW;row++) {
 		for (int col=0;col<NUM_COL;col++) {
 			square *s=&b->squares[row][col];
 			if (s->pt!=pt_NONE&&s->pc==pc) 
-				mvt[s->pt](b,pc,mbuf,mc);
+				mvt[s->pt](b,pc,pm,pmc);
 		}
 	}
 }
@@ -207,30 +208,31 @@ int is_click(Vector2 *mp) {
 	return ret;
 }
 
-int is_piece_click(board *b, Vector2 *mp, coord cb[2]) {
+int is_click_piece(board *b, Vector2 *mp, coord *c) {
 	int ret=0;
-	if (!is_click(mp)) {
-		ret=0;
-		goto cleanup;
-	}
 	coord new={0};
 	px_to_coord(mp, &new);
-	cb[1]=cb[0];
-	cb[0]=new;
-	if (b->squares[cb[0].row][cb[0].col].pc!=pc_NONE) ret=1;
-cleanup:
+	if (b->squares[new.row][new.col].pc!=pc_NONE) {
+		ret=1;
+		*c=new;
+	}
 	return ret;
 }
 
-void clear_mbuf(move *mbuf, size_t *s) {
+void clear_pm(move *pm, size_t *s) {
 	for (size_t i=0;i<*s;i++) {
-		mbuf[i] = (move) {
+		pm[i] = (move) {
 			.start=(coord){-1,-1},
 			.end=(coord){-1,-1},
 			.pcap=pcap_FALSE
 		};
 	}
 	*s=0;
+}
+
+void cb_push(coord cb[2], coord *c) {
+	cb[0]=cb[1];
+	cb[1]=*c;
 }
 
 int is_valid_move(move *moves, size_t s, coord cb[2]) {
@@ -240,16 +242,15 @@ int is_valid_move(move *moves, size_t s, coord cb[2]) {
 			cb[0].col==moves[i].start.col&&\
 			cb[1].row==moves[i].end.row&&\
 			cb[1].col==moves[i].end.col) {
-				ret=1;
-				goto cleanup;
-			}
+			ret=1;
+			goto cleanup;
+		}
 	}
 cleanup:
 	return ret;
 }
 
 int game_loop() {
-	board bd = {0};
 	game gm = {0};
 	textures tx = {0};
 	mv_vtable *mvt[NUM_PT] = {
@@ -260,31 +261,36 @@ int game_loop() {
 	InitWindow(WIDTH_BOARD, HEIGHT_BOARD, "chess");
 	SetTargetFPS(TARGET_FPS);
 
-	gm.flag_gen=1;
+	gm.fg=1;
+	gm.fm=0;
 	gm.turn=pc_W;
+	coord c = {0};
 
-	board_init(&bd);
+	board_init(&gm.bd);
 	textures_init(&tx);
 
 	while (!WindowShouldClose()) {
 	        BeginDrawing();
 	        ClearBackground(WHITE);
 
-	        board_draw(&bd, &tx);
-	        if (gm.flag_gen) {
-	        	clear_mbuf(gm.p_moves, &gm.p_mc);
-	        	moves_gen_all(&bd,gm.turn,gm.p_moves,&gm.p_mc,
+	        board_draw(&gm.bd, &tx);
+	        if (gm.fg) {
+	        	clear_pm(gm.pm, &gm.pmc);
+	        	moves_gen_all(&gm.bd,gm.turn,gm.pm,&gm.pmc,
 	        		(mv_vtable**)mvt);
-	        	gm.flag_gen=0;
+	        	gm.fg=0;
 	        }
-
-	        if (is_piece_click(&bd, &gm.mouse_pos, gm.ck_buf))
-	        	gm.flag_moving=!gm.flag_moving;
-	        if (is_valid_move(gm.p_moves, gm.p_mc, gm.ck_buf)) {
-	        	if (gm.flag_moving)
-		        	move_make(&bd, gm.ck_buf);
+		if (gm.fm)
+		        moves_draw(gm.pm, gm.pmc, &gm.cb[0]);
+		if (is_click(&gm.mp)) {
+			gm.fm=!gm.fm;
+			px_to_coord(&gm.mp,&c);
+			cb_push(gm.cb,&c);
 		}
-	        moves_draw(gm.p_moves, gm.p_mc, &gm.ck_buf[0]);
+	        if (is_valid_move(gm.pm, gm.pmc, gm.cb)) {
+	        	move_make(&gm.bd, gm.cb);
+	        	gm.fg=1;
+	        }
 
 	        EndDrawing();
 	}
