@@ -148,7 +148,7 @@ void moves_p_gen(board_t *b, color_t color, move_t *pm, size_t *pmc) {
 }
 
 void moves_n_gen(board_t *b, color_t color, move_t *pm, size_t *pmc) {
-	(void)b;(void)color;(void)pm;(void)pmc;
+	
 }
 
 void moves_b_gen(board_t *b, color_t color, move_t *pm, size_t *pmc) {
