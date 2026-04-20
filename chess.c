@@ -1,5 +1,6 @@
 #include "chess.h"
 
+#define NUM_DIRS 4
 #define MAX_MOVE_MOVES 256
 #define MAX_GAME_MOVES 1024
 #define TARGET_FPS 20
@@ -111,34 +112,34 @@ int is_ob(coord_t *a) {
 	return ret;
 }
 
-void flip_deltas(coord_t *d, size_t ds) {
-	for (size_t i=0;i<ds;i++) {
-		coord_t new={0};
-		new.row=d[i].row*-1;
-		new.col=d[i].col;
-		d[i]=new;
-	}
+void dirs_invert_row(coord_t *dirs, size_t s) {
+	for (size_t i=0;i<s;i++) dirs[i].row*=-1;
 }
 
 void moves_p_gen(board_t *b, color_t color, move_t *pm, size_t *pmc) {
-	const size_t ds=4;
-	coord_t deltas[]={{1,-1},{1,0},{1,1},{2,0}};
-	if (color==c_W) flip_deltas(deltas,ds);
-
+	int starting_row=1;
+	coord_t dirs[NUM_DIRS]={(coord_t){1,0},(coord_t){2,0},(coord_t){1,1},(coord_t){1,-1}};
+	if (color==c_W) {
+		starting_row=6;
+		dirs_invert_row(dirs, NUM_DIRS);
+	}
 	for (int row=0;row<NUM_ROW;row++) {
 		for (int col=0;col<NUM_COL;col++) {
 			square_t s=b->squares[row][col];
 			if (s.color!=color||s.type!=t_P) continue;
-			for (size_t d=0;d<ds;d++) {
-				coord_t c={row,col};
+			color_t cd0=b->squares[row+dirs[0].row][col].color;
+			color_t cd1=b->squares[row+dirs[1].row][col].color;
+			for (int d=0;d<NUM_DIRS;d++) {
+				if (d==0&&cd0!=c_NONE) continue;
+				if (d==1&&(cd0!=c_NONE||cd1!=c_NONE||row!=starting_row)) continue;
 				cap_t cap = cap_FALSE;
-				coord_add(&c,&deltas[d]);
-				if (is_ob(&c)) continue;
-				if (b->squares[c.row][c.col].color!=c_NONE)
-					cap = cap_TRUE;
+				coord_t tc=(coord_t){row,col};
+				coord_add(&tc,&dirs[d]);
+				color_t tcc=b->squares[tc.row][tc.col].color;
+				if ((d==2||d==3)&&(tcc==color||tcc==c_NONE)) continue;
 				pm[(*pmc)++]= (move_t) {
 					.start=(coord_t){row,col},
-					.end=c,
+					.end=tc,
 					.cap=cap
 				};
 			}
@@ -265,8 +266,8 @@ cleanup:
 }
 
 int game_loop() {
-	game_t game = {0};
-	texture_t textures = {0};
+	game_t game;
+	texture_t textures;
 	mvt_t *mvt[NUM_TYPES] = {
 		moves_p_gen,moves_n_gen,moves_b_gen,
 		moves_r_gen,moves_q_gen,moves_k_gen
@@ -277,8 +278,8 @@ int game_loop() {
 
 	game.flag_g=1;
 	game.turn=c_W;
+	coord_t c;
 	sel_clear(game.sel);
-	coord_t c={0};
 
 	board_init(&game.board);
 	textures_init(&textures);
@@ -306,14 +307,12 @@ int game_loop() {
 	        	if (valid_move) {
 	        		move_make(&game.board, game.sel);
 	        		game.flag_g=1;
+	        		game.turn=game.turn==c_W?c_B:c_W;
 	        	}
 	        	sel_clear(game.sel);
 	        }
 	        if (!sel_empty&&!sel_full&&piece_clicked)
 	        	moves_draw(game.pmoves,game.pmc,&c);
-	        printf("empty=%d full=%d clicked=%d piece_clicked=%d valid_move=%d c=(%d,%d) sel[0]=(%d %d) sel[1]=(%d %d)\n",
-		        sel_empty, sel_full, clicked, piece_clicked, valid_move, c.row, c.col,
-		        game.sel[0].row,game.sel[0].col,game.sel[1].row,game.sel[1].col);
 	        EndDrawing();
 	}
 	textures_deinit(&textures);
