@@ -31,7 +31,14 @@ typedef struct game_t {
 	size_t mc, pmc;
 	Vector2 mp;
 } game_t;
-typedef void mvt_t(board_t*,color_t,move_t[MAX_MOVE_MOVES],size_t*);
+typedef struct context_move {
+	board_t *b;
+	square_t *s;
+	coord_t *c;
+	move_t *pm;
+	size_t *pmc;
+} context_move;
+typedef void mvt_t(context_move*);
 
 void board_init(board_t *b) {
 	square_t initial_b[NUM_ROW][NUM_COL]={
@@ -116,64 +123,63 @@ void dirs_invert_row(coord_t *dirs, size_t s) {
 	for (size_t i=0;i<s;i++) dirs[i].row*=-1;
 }
 
-void moves_p_gen(board_t *b, color_t color, move_t *pm, size_t *pmc) {
+void moves_p_gen(context_move *cm) {
 	int starting_row=1;
 	coord_t dirs[NUM_DIRS]={(coord_t){1,0},(coord_t){2,0},(coord_t){1,1},(coord_t){1,-1}};
-	if (color==c_W) {
+	board_t *b=cm->b;
+	square_t *s=cm->s;
+	coord_t *c=cm->c;
+	move_t *pm=cm->pm;
+	size_t *pmc=cm->pmc;
+	if (s->color==c_W) {
 		starting_row=6;
 		dirs_invert_row(dirs, NUM_DIRS);
 	}
-	for (int row=0;row<NUM_ROW;row++) {
-		for (int col=0;col<NUM_COL;col++) {
-			square_t s=b->squares[row][col];
-			if (s.color!=color||s.type!=t_P) continue;
-			color_t cd0=b->squares[row+dirs[0].row][col].color;
-			color_t cd1=b->squares[row+dirs[1].row][col].color;
-			for (int d=0;d<NUM_DIRS;d++) {
-				if (d==0&&cd0!=c_NONE) continue;
-				if (d==1&&(cd0!=c_NONE||cd1!=c_NONE||row!=starting_row)) continue;
-				cap_t cap = cap_FALSE;
-				coord_t tc=(coord_t){row,col};
-				coord_add(&tc,&dirs[d]);
-				color_t tcc=b->squares[tc.row][tc.col].color;
-				if ((d==2||d==3)&&(tcc==color||tcc==c_NONE)) continue;
-				pm[(*pmc)++]= (move_t) {
-					.start=(coord_t){row,col},
-					.end=tc,
-					.cap=cap
-				};
-			}
-		}
+	color_t cd0=b->squares[c->row+dirs[0].row][c->col].color;
+	for (int d=0;d<NUM_DIRS;d++) {
+		cap_t cap = cap_FALSE;
+		coord_t tc=(coord_t){c->row,c->col};
+		coord_add(&tc,&dirs[d]);
+		color_t tcc=b->squares[tc.row][tc.col].color;
+		if (d==0&&tcc!=c_NONE) continue;
+		if (d==1&&(cd0!=c_NONE||tcc!=c_NONE||c->row!=starting_row)) continue;
+		if ((d==2||d==3)&&(tcc==s->color||tcc==c_NONE)) continue;
+		pm[(*pmc)++]= (move_t) {
+			.start=(coord_t){c->row,c->col},
+			.end=tc,
+			.cap=cap
+		};
 	}
 }
 
-void moves_n_gen(board_t *b, color_t color, move_t *pm, size_t *pmc) {
-	
+void moves_n_gen(context_move *cm) {
+	(void)cm;
 }
 
-void moves_b_gen(board_t *b, color_t color, move_t *pm, size_t *pmc) {
-	(void)b;(void)color;(void)pm;(void)pmc;
+void moves_b_gen(context_move *cm) {
+	(void)cm;
 }
 
-void moves_r_gen(board_t *b, color_t color, move_t *pm, size_t *pmc) {
-	(void)b;(void)color;(void)pm;(void)pmc;
+void moves_r_gen(context_move *cm) {
+	(void)cm;
 }
 
-void moves_q_gen(board_t *b, color_t color, move_t *pm, size_t *pmc) {
-	(void)b;(void)color;(void)pm;(void)pmc;
+void moves_q_gen(context_move *cm) {
+	(void)cm;
 }
 
-void moves_k_gen(board_t *b, color_t color, move_t *pm, size_t *pmc) {
-	(void)b;(void)color;(void)pm;(void)pmc;
+void moves_k_gen(context_move *cm) {
+	(void)cm;
 }
 
-void moves_all_gen(board_t *b,color_t color,move_t pm[MAX_MOVE_MOVES],
-	size_t *pmc,mvt_t **mvt) {
+void moves_all_gen(context_move *cm, mvt_t **mvt) {
 	for (int row=0;row<NUM_ROW;row++) {
 		for (int col=0;col<NUM_COL;col++) {
-			square_t *s=&b->squares[row][col];
-			if (s->type!=t_NONE&&s->color==color) 
-				mvt[s->type](b,color,pm,pmc);
+			square_t *s=&cm->b->squares[row][col];
+			coord_t c=(coord_t){row,col};
+			if (s->type==t_NONE||s->color==c_NONE) continue;
+			cm->s=s;cm->c=&c;
+			mvt[s->type](cm);
 		}
 	}
 }
@@ -265,9 +271,17 @@ cleanup:
 	return ret;
 }
 
+void context_move_init(context_move *cm,board_t *b,move_t *pm, size_t *pmc) {
+	cm->b=b;
+	cm->pm=pm;
+	cm->pmc=pmc;
+} 
+
 int game_loop() {
 	game_t game;
 	texture_t textures;
+	context_move cm;
+	coord_t c;
 	mvt_t *mvt[NUM_TYPES] = {
 		moves_p_gen,moves_n_gen,moves_b_gen,
 		moves_r_gen,moves_q_gen,moves_k_gen
@@ -278,12 +292,11 @@ int game_loop() {
 
 	game.flag_g=1;
 	game.turn=c_W;
-	coord_t c;
 	sel_clear(game.sel);
 
 	board_init(&game.board);
 	textures_init(&textures);
-
+	context_move_init(&cm,&game.board,game.pmoves,&game.pmc);
 
 	while (!WindowShouldClose()) {
 	        BeginDrawing();
@@ -298,7 +311,7 @@ int game_loop() {
 	        board_draw(&game.board, &textures);
 	        if (game.flag_g) {
 	        	pmoves_clear(game.pmoves, &game.pmc);
-	        	moves_all_gen(&game.board,game.turn,game.pmoves,&game.pmc,(mvt_t**)mvt);
+	        	moves_all_gen(&cm,(mvt_t**)mvt);
 	        	game.flag_g=0;
 	        }
 	        if (clicked)
