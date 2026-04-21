@@ -30,6 +30,7 @@ typedef struct game_t {
 	coord_t sel[2];
 	size_t mc, pmc;
 	Vector2 mp;
+	int flag_ep;
 } game_t;
 typedef struct context_move {
 	board_t *b;
@@ -37,6 +38,7 @@ typedef struct context_move {
 	coord_t *c;
 	move_t *pm;
 	size_t *pmc;
+	int *flag_ep;
 } context_move;
 typedef void mvt_t(context_move*);
 
@@ -189,11 +191,13 @@ void clear_square(square_t *s) {
 	s->type=t_NONE;
 }
 
-void move_make(board_t *b, coord_t sel[2]) {
-	square_t *start=&b->squares[sel[0].row][sel[0].col];
-	square_t *end=&b->squares[sel[1].row][sel[1].col];
+void move_make(board_t *b, move_t *pm, size_t pmi, move_t *m,size_t *mc) {
+	move_t move=pm[pmi];
+	square_t *start=&b->squares[move.start.row][move.start.col];
+	square_t *end=&b->squares[move.end.row][move.end.col];
 	*end=*start;
 	clear_square(start);
+	m[(*mc++)]=move;
 }
 
 void moves_draw(move_t *pmoves, size_t s, coord_t *c) {
@@ -258,11 +262,12 @@ void sel_push(coord_t sel[2], coord_t *c) {
 	sel[1]=*c;
 }
 
-int is_valid_move(move_t *moves, size_t s, coord_t sel[2]) {
+int is_valid_move(move_t *moves, size_t s, coord_t sel[2], size_t *idx) {
 	int ret = 0;
 	for (size_t i=0;i<s;i++) {
 		if (is_coord_equal(&moves[i].start,&sel[0])&&\
 			is_coord_equal(&moves[i].end,&sel[1])) {
+			*idx=i;
 			ret=1;
 			goto cleanup;
 		}
@@ -282,6 +287,7 @@ int game_loop() {
 	texture_t textures;
 	context_move cm;
 	coord_t c;
+	size_t valid_move_idx;
 	mvt_t *mvt[NUM_TYPES] = {
 		moves_p_gen,moves_n_gen,moves_b_gen,
 		moves_r_gen,moves_q_gen,moves_k_gen
@@ -292,6 +298,7 @@ int game_loop() {
 
 	game.flag_g=1;
 	game.turn=c_W;
+	game.pmc=0;game.mc=0;
 	sel_clear(game.sel);
 
 	board_init(&game.board);
@@ -306,7 +313,7 @@ int game_loop() {
 		int sel_full=is_sel_full(game.sel);
 		int clicked=is_click(&game.mp, &c);
 		int piece_clicked=is_click_piece(&game.board,&c);
-		int valid_move=is_valid_move(game.pmoves,game.pmc,game.sel);
+		int valid_move=is_valid_move(game.pmoves,game.pmc,game.sel,&valid_move_idx);
 
 	        board_draw(&game.board, &textures);
 	        if (game.flag_g) {
@@ -318,7 +325,7 @@ int game_loop() {
 	        	sel_push(game.sel, &c);
 	        if (sel_full) {
 	        	if (valid_move) {
-	        		move_make(&game.board, game.sel);
+	        		move_make(&game.board, game.pmoves, valid_move_idx, game.moves,&game.mc);
 	        		game.flag_g=1;
 	        		game.turn=game.turn==c_W?c_B:c_W;
 	        	}
