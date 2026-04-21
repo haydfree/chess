@@ -158,7 +158,7 @@ void moves_p_gen(context_move *cm) {
 	}
 }
 
-void moves_dir_gen(context_move *cm, coord_t *dirs, size_t ds, size_t step_size) {
+void moves_dir_gen(context_move *cm, coord_t *dirs, size_t ds, size_t max_steps) {
 	board_t *b=cm->b;
 	square_t *s=cm->s;
 	coord_t *c=cm->c;
@@ -166,7 +166,7 @@ void moves_dir_gen(context_move *cm, coord_t *dirs, size_t ds, size_t step_size)
 	size_t *pmc=cm->pmc;
 
 	for (size_t d=0;d<ds;d++) {
-		for (size_t step=1;step<=step_size;step++) {
+		for (size_t step=1;step<=max_steps;step++) {
 			coord_t tc=(coord_t){c->row,c->col};
 			coord_t dir=(coord_t){dirs[d].row*step,dirs[d].col*step};
 			coord_add(&tc,&dir);
@@ -184,34 +184,45 @@ void moves_dir_gen(context_move *cm, coord_t *dirs, size_t ds, size_t step_size)
 	}
 }
 
+void moves_diag_gen(context_move *cm, const size_t ms) {
+	coord_t dirs[]={{1,1},{-1,1},{1,-1},{-1,-1}};
+	const size_t ds=4;
+	moves_dir_gen(cm, dirs, ds, ms);
+}
+
+void moves_strt_gen(context_move *cm, const size_t ms) {
+	coord_t dirs[]={{1,0},{-1,0},{0,1},{0,-1}};
+	const size_t ds=4;
+	moves_dir_gen(cm, dirs, ds, ms);
+}
+
 void moves_n_gen(context_move *cm) {
-	const size_t ds=8;
-	const size_t step_size=1;
 	coord_t dirs[]={{2,1},{1,2},{-2,1},{-1,2},{2,-1},{1,-2},{-2,-1},{-1,-2}};
-	moves_dir_gen(cm, dirs, ds, step_size);
+	const size_t ds=8;
+	const size_t ms=1;
+	moves_dir_gen(cm, dirs, ds, ms);
 }
 
 void moves_b_gen(context_move *cm) {
-	const size_t ds=4;
-	const size_t step_size=NUM_ROW;
-	coord_t dirs[]={{1,1},{1,-1},{-1,1},{-1,-1}};
-	moves_dir_gen(cm, dirs, ds, step_size);
+	const size_t ms=NUM_ROW;
+	moves_diag_gen(cm, ms);
 }
 
 void moves_r_gen(context_move *cm) {
-	const size_t ds=4;
-	const size_t step_size=NUM_ROW;
-	coord_t dirs[]={{1,0},{-1,0},{0,1},{0,-1}};
-	moves_dir_gen(cm, dirs, ds, step_size);
+	const size_t ms=NUM_ROW;
+	moves_strt_gen(cm, ms);
 }
 
 void moves_q_gen(context_move *cm) {
-	moves_b_gen(cm);
-	moves_r_gen(cm);
+	const size_t ms=NUM_ROW;
+	moves_strt_gen(cm, ms);
+	moves_diag_gen(cm, ms);
 }
 
 void moves_k_gen(context_move *cm) {
-	(void)cm;
+	const size_t ms=1;
+	moves_strt_gen(cm, ms);
+	moves_diag_gen(cm, ms);
 }
 
 void moves_all_gen(context_move *cm, mvt_t **mvt) {
@@ -354,6 +365,8 @@ int game_loop() {
 		int clicked=is_click(&game.mp, &c);
 		int piece_clicked=is_click_piece(&game.board,&c);
 		int valid_move=is_valid_move(game.pmoves,game.pmc,game.sel,&valid_move_idx);
+		square_t square_clicked=game.board.squares[c.row][c.col];
+		color_t color_clicked=square_clicked.color;
 
 	        board_draw(&game.board, &textures);
 	        if (game.flag_g) {
@@ -371,7 +384,7 @@ int game_loop() {
 	        	}
 	        	sel_clear(game.sel);
 	        }
-	        if (!sel_empty&&!sel_full&&piece_clicked)
+	        if (!sel_empty&&!sel_full&&piece_clicked&&color_clicked==game.turn)
 	        	moves_draw(game.pmoves,game.pmc,&c);
 	        EndDrawing();
 	}
