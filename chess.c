@@ -125,6 +125,10 @@ void dirs_invert_row(coord_t *dirs, size_t s) {
 	for (size_t i=0;i<s;i++) dirs[i].row*=-1;
 }
 
+void dirs_invert_col(coord_t *dirs, size_t s) {
+	for (size_t i=0;i<s;i++) dirs[i].col*=-1;
+}
+
 void moves_p_gen(context_move *cm) {
 	int starting_row=1;
 	coord_t dirs[NUM_DIRS]={(coord_t){1,0},(coord_t){2,0},(coord_t){1,1},(coord_t){1,-1}};
@@ -154,20 +158,56 @@ void moves_p_gen(context_move *cm) {
 	}
 }
 
+void moves_dir_gen(context_move *cm, coord_t *dirs, size_t ds, size_t step_size) {
+	board_t *b=cm->b;
+	square_t *s=cm->s;
+	coord_t *c=cm->c;
+	move_t *pm=cm->pm;
+	size_t *pmc=cm->pmc;
+
+	for (size_t d=0;d<ds;d++) {
+		for (size_t step=1;step<=step_size;step++) {
+			coord_t tc=(coord_t){c->row,c->col};
+			coord_t dir=(coord_t){dirs[d].row*step,dirs[d].col*step};
+			coord_add(&tc,&dir);
+			move_t move=(move_t) {*c,tc,cap_FALSE};
+			if (is_ob(&tc)) continue;
+			square_t ts=b->squares[tc.row][tc.col];
+			if (ts.color==s->color) break;
+			if (ts.color!=c_NONE&&ts.color!=s->color) {
+				move.cap=cap_TRUE;
+				pm[(*pmc)++]=move;
+				break;
+			}
+			pm[(*pmc)++]=move;
+		}
+	}
+}
+
 void moves_n_gen(context_move *cm) {
-	(void)cm;
+	const size_t ds=8;
+	const size_t step_size=1;
+	coord_t dirs[]={{2,1},{1,2},{-2,1},{-1,2},{2,-1},{1,-2},{-2,-1},{-1,-2}};
+	moves_dir_gen(cm, dirs, ds, step_size);
 }
 
 void moves_b_gen(context_move *cm) {
-	(void)cm;
+	const size_t ds=4;
+	const size_t step_size=NUM_ROW;
+	coord_t dirs[]={{1,1},{1,-1},{-1,1},{-1,-1}};
+	moves_dir_gen(cm, dirs, ds, step_size);
 }
 
 void moves_r_gen(context_move *cm) {
-	(void)cm;
+	const size_t ds=4;
+	const size_t step_size=NUM_ROW;
+	coord_t dirs[]={{1,0},{-1,0},{0,1},{0,-1}};
+	moves_dir_gen(cm, dirs, ds, step_size);
 }
 
 void moves_q_gen(context_move *cm) {
-	(void)cm;
+	moves_b_gen(cm);
+	moves_r_gen(cm);
 }
 
 void moves_k_gen(context_move *cm) {
