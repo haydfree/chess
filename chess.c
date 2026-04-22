@@ -30,7 +30,7 @@ typedef struct game_t {
 	coord_t sel[2];
 	size_t mc, pmc;
 	Vector2 mp;
-	int flag_ep;
+	int flag_ep,flag_wc,flag_bc;
 } game_t;
 typedef struct context_move {
 	board_t *b;
@@ -38,7 +38,7 @@ typedef struct context_move {
 	coord_t *c;
 	move_t *pm;
 	size_t *pmc;
-	int *flag_ep;
+	int *flag_ep,*flag_wc,*flag_bc;
 } context_move;
 typedef void mvt_t(context_move*);
 
@@ -217,6 +217,23 @@ void moves_q_gen(context_move *cm) {
 	const size_t ms=NUM_ROW;
 	moves_strt_gen(cm, ms);
 	moves_diag_gen(cm, ms);
+}
+
+void check_check(game_t *game) {
+	coord_t wk,bk;	
+	for (int row=0;row<NUM_ROW;row++) {
+		for (int col=0;col<NUM_COL;col++) {
+			square_t s=game->board.squares[row][col];
+			if (s.color==c_W&&s.type==t_K) wk=(coord_t){row,col};
+			if (s.color==c_B&&s.type==t_K) bk=(coord_t){row,col};
+		}
+	}
+	for (int pm=0;pm<MAX_MOVE_MOVES;pm++) {
+		if (is_coord_equal(&game->pmoves[pm].end,&wk))
+			game->flag_wc=1;
+		if (is_coord_equal(&game->pmoves[pm].end,&bk))
+			game->flag_bc=1;
+	}
 }
 
 void moves_k_gen(context_move *cm) {
