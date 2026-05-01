@@ -219,6 +219,40 @@ void moves_q_gen(context_move *cm) {
 	moves_diag_gen(cm, ms);
 }
 
+// isCheck func concept
+/* ---
+1. Identify what square king under threat is on
+2. Generate opponent's legal moves from current pos
+3. Check if any of those legal moves are == to kings square
+bool isCheck(board_t *b, color_t color) {
+	coord_t king = getPos(board_t *b, color_t color, square_t type) //need a function for this anyways
+    move_t temp_moves[MAX_MOVE_MOVES];
+    size_t temp_count = 0;
+
+    context_move cm;
+    context_move_init(&cm, b, temp_moves, &temp_count);
+
+    mvt_t *mvt[NUM_TYPES] = {
+        moves_p_gen, moves_n_gen, moves_b_gen,
+        moves_r_gen, moves_q_gen, moves_k_gen
+    };
+	for (size_t r = 0; r < NUM_ROW; r++) {
+		for (size_t c = 0; c < NUM_COL; c++) {
+			if (s->color != color && s->color != c_NONE) {
+				cm = {s, {r, c}};
+				mvt[s->type](&cm);
+			}
+		}
+	}
+    for (size_t i = 0; i < temp_count; i++) {
+        if (is_coord_equal(&temp_moves[i].end, &king))
+            return 1; // king is attacked
+    }
+
+    return 0; // safe
+}
+*/
+
 void check_check(game_t *game) {
 	coord_t wk,bk;	
 	for (int row=0;row<NUM_ROW;row++) {
