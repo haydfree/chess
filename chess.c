@@ -60,7 +60,7 @@ void textures_init(texture_t *t) {
 				TextFormat("%s/%d%d.png",PATH_TX,color,type));
 		}
 	}
-    	t->board = LoadTexture(TextFormat("%s/board.png",PATH_TX));
+    t->board = LoadTexture(TextFormat("%s/board.png",PATH_TX));
 }
 
 void textures_deinit(texture_t *t) {
@@ -74,59 +74,59 @@ void textures_deinit(texture_t *t) {
 
 void px_to_coord(Vector2 *v, coord_t *c) {
 	coord_t new = {0};
-	new.row=v->y/PX_PER_SQ;
-	new.col=v->x/PX_PER_SQ;
-	*c=new;
+	new.row = v->y / PX_PER_SQ;
+	new.col = v->x / PX_PER_SQ;
+	*c = new;
 }
 
 void coord_to_px(coord_t *c, Vector2 *v, int centered) {
-	Vector2 new = {c->col*PX_PER_SQ,c->row*PX_PER_SQ};
+	Vector2 new = {c->col * PX_PER_SQ, c->row * PX_PER_SQ};
 	if (centered) {
-		new.x+=PX_PER_SQ/2;
-		new.y+=PX_PER_SQ/2;
+		new.x += PX_PER_SQ / 2;
+		new.y += PX_PER_SQ / 2;
 	}
-	*v=new;
+	*v = new;
 }
 
 void board_draw(board_t *b, texture_t *t) {
-	DrawTexture(t->board,0,0,WHITE);
+	DrawTexture(t->board, 0, 0, WHITE);
 
 	for (int row=0;row<NUM_ROW;row++) {
 		for (int col=0;col<NUM_COL;col++) {
 			square_t *s=&b->squares[row][col];
-		        if (s->color!=c_NONE) {
-		        	coord_t c={row,col};
-			        Vector2 v={0};
-			        coord_to_px(&c,&v,0);
-		        	DrawTextureV(t->pieces[s->color][s->type], v, WHITE);
-		        }
+			if (s->color != c_NONE) {
+				coord_t c = {row,col};
+				Vector2 v = {0};
+				coord_to_px(&c, &v, 0);
+				DrawTextureV(t->pieces[s->color][s->type], v, WHITE);
+			}
 		}
 	}
 }
 
 void coord_add(coord_t *a, coord_t *b) {
 	coord_t new = {0};
-	new.row = a->row+b->row;
-	new.col = a->col+b->col;
-	*a=new;
+	new.row = a->row + b->row;
+	new.col = a->col + b->col;
+	*a = new;
 }
 
 int is_coord_equal(coord_t *a, coord_t *b) {
-	return a->row==b->row&&a->col==b->col;
+	return a->row == b->row && a->col == b->col;
 }
 
 int is_ob(coord_t *a) {
 	int ret = 0;
-	if (a->row>=NUM_ROW||a->row<0||a->col>=NUM_COL||a->col<0) ret=1;
+	if (a->row >= NUM_ROW || a->row < 0 || a->col >= NUM_COL || a->col < 0) ret = 1;
 	return ret;
 }
 
 void dirs_invert_row(coord_t *dirs, size_t s) {
-	for (size_t i=0;i<s;i++) dirs[i].row*=-1;
+	for (size_t i = 0; i < s; i++) dirs[i].row *= -1;
 }
 
 void dirs_invert_col(coord_t *dirs, size_t s) {
-	for (size_t i=0;i<s;i++) dirs[i].col*=-1;
+	for (size_t i = 0; i < s; i++) dirs[i].col *= -1;
 }
 
 void moves_p_gen(context_move *cm) {
