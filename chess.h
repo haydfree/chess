@@ -4,11 +4,13 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
+#include <string.h>
 
 #include <raylib.h>
 #include <raymath.h>
 
-int game_loop();
+#include "common.h"
+
+void game_loop();
 
 #endif // CHESS_H
