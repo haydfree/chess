@@ -21,6 +21,10 @@ typedef struct coord_t {
 	u8 rank, file;
 } coord_t;
 
+typedef struct dir_t {
+	i8 rank, file;
+} dir_t;
+
 typedef struct square_t {
 	color_t color;
 	type_t type;
@@ -71,8 +75,36 @@ typedef struct ctx_move_t {
 
 typedef void mvt_t(ctx_move_t *);
 
-void board_init(board_t *b) {
-	(void)b;
+void board_init(board_t *board) {
+	i8 initial_board[RANKS][FILES] = {
+		{13,11,12,14,15,12,11,13},
+		{10,10,10,10,10,10,10,10},
+		{-1,-1,-1,-1,-1,-1,-1,-1},
+		{-1,-1,-1,-1,-1,-1,-1,-1},
+		{-1,-1,-1,-1,-1,-1,-1,-1},
+		{-1,-1,-1,-1,-1,-1,-1,-1},
+		{00,00,00,00,00,00,00,00},
+		{03,01,02,04,05,02,01,03}
+	};
+
+	for (u8 rank = 0; rank < RANKS; rank++) {
+		for (u8 file = 0; file < FILES; file++) {
+			i8 code = initial_board[rank][file];
+			square_t square;
+			coord_t coord;
+			coord.rank = rank;
+			coord.file = file;
+			square.coord = coord;
+			if (code == -1) {
+				square.color = c_NONE;
+				square.type = t_NONE;
+			} else {
+				square.color = code / 10;
+				square.type = code % 10;
+			}
+			board->squares[rank][file] = square;
+		}
+	}
 }
 
 void textures_init(texture_t *t) {
@@ -145,19 +177,9 @@ void board_draw(board_t *b, texture_t *t) {
 	}
 }
 
-// TOOD: stop early if found
 void determine_check(ctx_move_t *ctx_move) {
 	square_t wk, bk;
 	move_t *moves_possible = ctx_move->moves_possible;
-	for (u8 rank = 0; rank < RANKS; rank++) {
-		for (u8 file = 0; file < FILES; file++) {
-			square_t square = ctx_move->board->squares[rank][file];
-			if (square.color == c_W && square.type == t_K)
-				wk = square;
-			if (square.color == c_B && square.type == t_K)
-				bk = square;
-		}
-	}
 	bool resw = false, resb = false;
 	for (u8 i = 0; i < MAX_MOVES_POSSIBLE; i++) {
 		is_coord_equal(&moves_possible[i].end->coord, &wk.coord, &resw);
@@ -165,11 +187,11 @@ void determine_check(ctx_move_t *ctx_move) {
 	}
 }
 
-void dirs_invert_rank(coord_t *dirs, u8 s) {
+void dirs_invert_rank(dir_t *dirs, u8 s) {
 	for (u8 i = 0; i < s; i++) dirs[i].rank *= -1;
 }
 
-void moves_dir_gen(ctx_move_t *ctx_move, coord_t *dirs, 
+void moves_dir_gen(ctx_move_t *ctx_move, dir_t *dirs, 
 	u8 dirs_size, u8 max_steps) {
 	move_t *moves_possible = ctx_move->moves_possible;
 	board_t *board = ctx_move->board;
@@ -201,22 +223,19 @@ void moves_dir_gen(ctx_move_t *ctx_move, coord_t *dirs,
 }
 
 void moves_diag_gen(ctx_move_t *ctx_move, u8 max_steps) {
-	coord_t dirs[NUM_DIRS] = {{1, 1}, {-1, 1}, {1, -1}, {-1, -1}};
+	dir_t dirs[NUM_DIRS] = {{1, 1}, {-1, 1}, {1, -1}, {-1, -1}};
 	const u8 dir_size = 4;
 	moves_dir_gen(ctx_move, dirs, dir_size, max_steps);
 }
 
 void moves_strt_gen(ctx_move_t *ctx_move, u8 max_steps) {
-	coord_t dirs[NUM_DIRS] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+	dir_t dirs[NUM_DIRS] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
 	const u8 dir_size = 4;
 	moves_dir_gen(ctx_move, dirs, dir_size, max_steps);
 }
 
 void moves_p_gen(ctx_move_t *ctx_move) {
-	coord_t dirs[NUM_DIRS] = {
-		(coord_t) {1, 0}, (coord_t) {2, 0},
-		(coord_t) {1, 1}, (coord_t) {1, -1}
-	};
+	dir_t dirs[NUM_DIRS] = {{1, 0}, {2, 0}, {1, 1}, {1, -1}};
 	u8 starting_rank = 1;
 	move_t *moves_possible = ctx_move->moves_possible;
 	board_t *board = ctx_move->board;
@@ -228,7 +247,7 @@ void moves_p_gen(ctx_move_t *ctx_move) {
 	}
 	color_t cd0 = board->squares[square->coord.rank + dirs[0].rank]
 		[square->coord.file].color;
-	for (int d = 0; d < NUM_DIRS; d++) {
+	for (u8 d = 0; d < NUM_DIRS; d++) {
 		square_t target = board->squares\
 			[square->coord.rank + dirs[d].rank]\
 			[square->coord.file + dirs[d].file];
@@ -242,9 +261,7 @@ void moves_p_gen(ctx_move_t *ctx_move) {
 			if (target.color == square->color ||\
 				 target.color == c_NONE) {
 				 continue;
-			} else {
-				cap = true;
-			}
+			} else cap = true;
 		}
 		move_t move;
 		move.start = square;
@@ -256,7 +273,7 @@ void moves_p_gen(ctx_move_t *ctx_move) {
 }
 
 void moves_n_gen(ctx_move_t *ctx_move) {
-	coord_t dirs[] = {{2, 1}, {1, 2}, {-2, 1}, {-1, 2},
+	dir_t dirs[] = {{2, 1}, {1, 2}, {-2, 1}, {-1, 2},
 		{2, -1}, {1, -2}, {-2, -1}, {-1, -2}};
 	const u8 dir_size = 8;
 	const u8 max_steps = 1;
@@ -298,8 +315,45 @@ void moves_all_gen(ctx_move_t *ctx_move, mvt_t **mvt) {
 	}
 }
 
+void input_init(input_t *input, game_t *game) {
+	input->active = false;
+	input->moves_selected = game->moves_selected;
+}
+
+void input_update(input_t *input) {
+	coord_t coord;
+	input->mouse_pos = GetMousePosition();
+	px_to_coord(&input->mouse_pos, &coord);
+	input->coord = coord;
+	if (IsMouseButtonPressed(1)) input->active = !input->active;
+}
+
+void ctx_move_init(ctx_move_t *ctx_move, game_t *game) {
+	ctx_move->board = &game->board;
+	ctx_move->moves_possible = game->moves_possible;
+	ctx_move->counter_mp = &game->counter_mp;
+}
+
+void game_init(game_t *game) {
+	board_init(&game->board);
+	input_init(&game->input, game);
+	game->counter_ma = 0;
+	game->counter_mp = 0;
+	game->counter_ms = 0;
+	game->turn = c_W;
+	game->score = 0;
+	game->score_white = 0;
+	game->score_black = 0;
+	game->flag_en_passant = false;
+	game->flag_check_white = false;
+	game->flag_check_black = false;
+	game->flag_move_gen = true;
+}
+
 void game_loop() {
 	game_t game;
+	input_t input;
+	ctx_move_t ctx_move;
 	texture_t textures;
 	mvt_t *mvt[TYPES] = {moves_p_gen, moves_n_gen, moves_b_gen, 
 		moves_r_gen, moves_q_gen, moves_k_gen};
@@ -308,15 +362,15 @@ void game_loop() {
 	InitWindow(BOARD_WIDTH, BOARD_HEIGHT, "chess");
 	SetTargetFPS(TARGET_FPS);
 
-	board_init(&game.board);
+	game_init(&game);
+	ctx_move_init(&ctx_move, &game);
 	textures_init(&textures);
-
-	ctx_move_t ctx_move;
-	game.flag_move_gen = true;
 
 	while (!WindowShouldClose()) {
 		BeginDrawing();
 		ClearBackground(WHITE);
+
+		input_update(&input);
 
 		if (game.flag_move_gen) {
 			moves_all_gen(&ctx_move, (mvt_t**) mvt);

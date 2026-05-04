@@ -27,6 +27,7 @@ typedef i8 status;
 #define STATUS_ERR_IO    ((status)0xDEAD0003)
 #define STATUS_ERR_MEM   ((status)0xDEAD0004)
 
+ #define DEBUG(fmt, ...) fprintf(stderr, "[DEBUG %s:%d in %s()] " fmt "\n", __FILE__, __LINE__, __func__, ##__VA_ARGS__)
 #define ARR_GET(arr, i, len) (assert((i) < (len)), (arr)[(i)])
 #define ARR_SET(arr, i, len, val) (assert((i) < (len)), (arr)[(i)] = (val))
 #define ARR2D_GET(arr, i, ilen, j, jlen) (assert((i) < (ilen) && (j) < (jlen)), (arr)[(i)][(j)])
