@@ -50,6 +50,7 @@ typedef struct input_t {
 	coord_t coord;
 	move_t *moves_selected;
 	bool active;
+	square_t *selected;
 } input_t;
 
 typedef struct game_t {
@@ -58,10 +59,9 @@ typedef struct game_t {
 	move_t moves_selected[MAX_MOVES_POSSIBLE];
 	board_t board;
 	input_t input;
-	u16 counter_ma, counter_mp, counter_ms;
 	color_t turn;
 	i8 score;
-	u8 score_white, score_black;
+	u8 score_white, score_black, counter_ma, counter_mp, counter_ms;
 	bool flag_en_passant, flag_check_white, flag_check_black, 
 		flag_move_gen;
 } game_t;
@@ -70,7 +70,7 @@ typedef struct ctx_move_t {
 	move_t *moves_possible;
 	board_t *board;
 	square_t *square;
-	u16 *counter_mp;
+	u8 *counter_mp;
 } ctx_move_t;
 
 typedef void mvt_t(ctx_move_t *);
@@ -153,25 +153,32 @@ void is_coord_equal(coord_t *a, coord_t *b, bool *res) {
 	*res = a->rank == b->rank && a->file == b->file;
 }
 
-void is_ob(square_t *square, bool *res) {
+void is_ob(coord_t *coord, bool *res) {
 	*res = false;
-	coord_t c = square->coord;
-	if (c.rank >= RANKS || c.file >= FILES)
+	if (coord->rank >= RANKS || coord->file >= FILES)
 		*res = true;
 }
 
-void board_draw(board_t *b, texture_t *t) {
-	DrawTexture(t->board, 0, 0, WHITE);
+void board_draw(board_t *board, texture_t *textures, input_t *input) {
+	DrawTexture(textures->board, 0, 0, WHITE);
+	
+	if (input->active) {
+		coord_t c = input->selected->coord;
+		Vector2 v = {0};
+		coord_to_px(&c, &v, false);
+		DrawRectangle(v.x, v.y, PX_PER_SQ, PX_PER_SQ, RED);
+	}
 
 	for (u8 rank = 0; rank < RANKS; rank++) {
 		for (u8 file = 0; file < FILES; file++) {
-			square_t s = b->squares[rank][file];
+			square_t s = board->squares[rank][file];
 			if (s.color != c_NONE) {
 				Vector2 v = {0};
 				coord_t c = {rank, file};
 				coord_to_px(&c, &v, false);
 				DrawTextureV(
-					t->pieces[s.color][s.type], v, WHITE);
+					textures->pieces[s.color][s.type], 
+						v, WHITE);
 			}
 		}
 	}
@@ -196,27 +203,28 @@ void moves_dir_gen(ctx_move_t *ctx_move, dir_t *dirs,
 	move_t *moves_possible = ctx_move->moves_possible;
 	board_t *board = ctx_move->board;
 	square_t *square = ctx_move->square;
-	u16 *counter_mp = ctx_move->counter_mp;
+	u8 *counter_mp = ctx_move->counter_mp;
 
 	for (u8 d = 0; d < dirs_size; d++) {
 		for (u8 step = 1; step <= max_steps; step++) {
 			bool ob = false;
-			square_t target = board->squares\
-				[square->coord.rank + dirs[d].rank * step]\
-				[square->coord.file + dirs[d].file * step];
-			is_ob(&target, &ob);
+			u8 rank = square->coord.rank + dirs[d].rank * step;
+			u8 file = square->coord.file + dirs[d].file * step;
+			coord_t coord = {rank, file};
+			is_ob(&coord, &ob);
 			if (ob) continue;
-			if (target.color == square->color) break;
+			square_t *target = &board->squares[rank][file];
+			if (target->color == square->color) break;
 			move_t move;
 			move.start = square;
-			move.end = &target;
-			if (target.color != c_NONE &&\
-				target.color != square->color) {
+			move.end = target;
+			move.captured = false;
+			if (target->color != c_NONE &&\
+				target->color != square->color) {
 				move.captured = true;
 				moves_possible[(*counter_mp)++] = move;
 				break;
 			}
-			move.captured = false;
 			moves_possible[(*counter_mp)++] = move;
 		}
 	}
@@ -240,7 +248,7 @@ void moves_p_gen(ctx_move_t *ctx_move) {
 	move_t *moves_possible = ctx_move->moves_possible;
 	board_t *board = ctx_move->board;
 	square_t *square = ctx_move->square;
-	u16 *counter_mp = ctx_move->counter_mp;
+	u8 *counter_mp = ctx_move->counter_mp;
 	if (square->color == c_W) {
 		starting_rank = 6;
 		dirs_invert_rank(dirs, NUM_DIRS);
@@ -248,24 +256,28 @@ void moves_p_gen(ctx_move_t *ctx_move) {
 	color_t cd0 = board->squares[square->coord.rank + dirs[0].rank]
 		[square->coord.file].color;
 	for (u8 d = 0; d < NUM_DIRS; d++) {
-		square_t target = board->squares\
-			[square->coord.rank + dirs[d].rank]\
-			[square->coord.file + dirs[d].file];
+		bool ob = false;
+		u8 rank = square->coord.rank + dirs[d].rank;
+		u8 file = square->coord.file + dirs[d].file;
+		coord_t coord = {rank, file};
+		is_ob(&coord, &ob);
+		if (ob) continue;
+		square_t *target = &board->squares[rank][file];
 		bool cap = false;
-		if (d == 0 && target.color != c_NONE) continue;
+		if (d == 0 && target->color != c_NONE) continue;
 		if (d == 1
-			&& (cd0 != c_NONE || target.color != c_NONE
+			&& (cd0 != c_NONE || target->color != c_NONE
 				|| square->coord.rank != starting_rank))
 			continue;
 		if (d == 2 || d == 3) {
-			if (target.color == square->color ||\
-				 target.color == c_NONE) {
+			if (target->color == square->color ||\
+				 target->color == c_NONE) {
 				 continue;
 			} else cap = true;
 		}
 		move_t move;
 		move.start = square;
-		move.end = &target;
+		move.end = target;
 		move.captured = cap;
 		moves_possible[(*counter_mp)++] = move;
 			
@@ -305,13 +317,36 @@ void moves_k_gen(ctx_move_t *ctx_move) {
 void moves_all_gen(ctx_move_t *ctx_move, mvt_t **mvt) {
 	for (u8 rank = 0; rank < RANKS; rank++) {
 		for (u8 file = 0; file < FILES; file++) {
-			square_t square = ctx_move->board->squares\
+			square_t *square = &ctx_move->board->squares\
 				[rank][file];
-			if (square.type == t_NONE\
-				 || square.color == c_NONE) continue;
-			ctx_move->square = &square;
-			mvt[square.type](ctx_move);
+			if (square->type == t_NONE\
+				 || square->color == c_NONE) continue;
+			ctx_move->square = square;
+			mvt[square->type](ctx_move);
 		}
+	}
+}
+
+void moves_clear(move_t *moves, u8 *counter, u8 size) {
+	*counter = 0;
+	for (u8 i = 0; i < size; i++) memset(&moves[i], 0, sizeof(move_t));
+}
+
+void moves_select(game_t *game, input_t *input) {
+	for (u8 i = 0; i < game->counter_mp; i++) {
+		if (game->moves_possible[i].start == input->selected) {
+			game->moves_selected[game->counter_ms++] = \
+				game->moves_possible[i];
+		}
+	}
+}
+
+void moves_draw(move_t *moves, u8 size) {
+	for (u8 i = 0; i < size; i++) {
+		coord_t c = moves[i].end->coord;
+		Vector2 v = {0};
+		coord_to_px(&c, &v, true);
+		DrawCircle(v.x, v.y, 5, RED);
 	}
 }
 
@@ -320,12 +355,18 @@ void input_init(input_t *input, game_t *game) {
 	input->moves_selected = game->moves_selected;
 }
 
-void input_update(input_t *input) {
+void input_update(input_t *input, game_t *game) {
 	coord_t coord;
 	input->mouse_pos = GetMousePosition();
 	px_to_coord(&input->mouse_pos, &coord);
 	input->coord = coord;
-	if (IsMouseButtonPressed(1)) input->active = !input->active;
+	if (IsMouseButtonPressed(0)) {
+		input->active = !input->active;
+		if (input->active) {
+			input->selected = &game->board.squares\
+				[coord.rank][coord.file];
+		}
+	}
 }
 
 void ctx_move_init(ctx_move_t *ctx_move, game_t *game) {
@@ -348,6 +389,10 @@ void game_init(game_t *game) {
 	game->flag_check_white = false;
 	game->flag_check_black = false;
 	game->flag_move_gen = true;
+
+	memset(game->moves_actual, 0, MAX_MOVES_ACTUAL*sizeof(move_t));
+	memset(game->moves_possible, 0, MAX_MOVES_POSSIBLE*sizeof(move_t));
+	memset(game->moves_selected, 0, MAX_MOVES_POSSIBLE*sizeof(move_t));
 }
 
 void game_loop() {
@@ -370,13 +415,20 @@ void game_loop() {
 		BeginDrawing();
 		ClearBackground(WHITE);
 
-		input_update(&input);
+		board_draw(&game.board, &textures, &input);
+		input_update(&input, &game);
+
+		if (input.active) {
+			moves_clear(game.moves_selected, &game.counter_ms,
+				MAX_MOVES_POSSIBLE);
+			moves_select(&game, &input);
+			moves_draw(game.moves_selected, game.counter_ms);
+		}
 
 		if (game.flag_move_gen) {
 			moves_all_gen(&ctx_move, (mvt_t**) mvt);
+			game.flag_move_gen = false;
 		}
-
-		board_draw(&game.board, &textures);
 
 		EndDrawing();
 	}
