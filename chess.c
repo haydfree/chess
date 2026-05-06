@@ -2,7 +2,7 @@
 
 #define NUM_DIRS 4
 #define MAX_MOVES_ACTUAL 255
-#define MAX_MOVES_POSSIBLE 32
+#define MAX_MOVES_POSSIBLE 64
 #define RANKS 8
 #define FILES 8
 #define COLORS 2
@@ -48,9 +48,9 @@ typedef struct texture_t {
 typedef struct input_t {
 	Vector2 mouse_pos;
 	coord_t coord;
-	move_t *moves_selected;
-	bool active;
-	square_t *selected;
+	move_t *moves_selected, move_selected;
+	square_t *square_selected, *square_hovered;
+	bool active, flag_move;
 } input_t;
 
 typedef struct game_t {
@@ -105,6 +105,14 @@ void board_init(board_t *board) {
 			board->squares[rank][file] = square;
 		}
 	}
+}
+
+void board_update(game_t *game) {
+	square_t *start = game->moves_actual[game->counter_ma - 1].start;
+	square_t *end = game->moves_actual[game->counter_ma - 1].end;
+	*end = *start;
+	start->color = c_NONE;
+	start->type = t_NONE;
 }
 
 void textures_init(texture_t *t) {
@@ -163,7 +171,7 @@ void board_draw(board_t *board, texture_t *textures, input_t *input) {
 	DrawTexture(textures->board, 0, 0, WHITE);
 	
 	if (input->active) {
-		coord_t c = input->selected->coord;
+		coord_t c = input->square_selected->coord;
 		Vector2 v = {0};
 		coord_to_px(&c, &v, false);
 		DrawRectangle(v.x, v.y, PX_PER_SQ, PX_PER_SQ, RED);
@@ -327,14 +335,28 @@ void moves_all_gen(ctx_move_t *ctx_move, mvt_t **mvt) {
 	}
 }
 
+void move_make(game_t *game, input_t *input) {
+	move_t move;
+	move.start = input->square_selected;
+	move.end = input->square_hovered;
+	color_t target_color = move.end->color;
+	move.captured = false;
+	if (target_color != game->turn && target_color != c_NONE)
+		move.captured = true;
+
+	game->moves_actual[game->counter_ma++] = move;
+	game->turn = !game->turn;
+	game->flag_move_gen = true;
+}
+
 void moves_clear(move_t *moves, u8 *counter, u8 size) {
 	*counter = 0;
-	for (u8 i = 0; i < size; i++) memset(&moves[i], 0, sizeof(move_t));
+	memset(moves, 0, sizeof(move_t) * size);
 }
 
 void moves_select(game_t *game, input_t *input) {
 	for (u8 i = 0; i < game->counter_mp; i++) {
-		if (game->moves_possible[i].start == input->selected) {
+		if (game->moves_possible[i].start == input->square_selected) {
 			game->moves_selected[game->counter_ms++] = \
 				game->moves_possible[i];
 		}
@@ -352,7 +374,10 @@ void moves_draw(move_t *moves, u8 size) {
 
 void input_init(input_t *input, game_t *game) {
 	input->active = false;
+	input->flag_move = false;
 	input->moves_selected = game->moves_selected;
+	input->square_selected = NULL;
+	input->square_hovered = NULL;
 }
 
 void input_update(input_t *input, game_t *game) {
@@ -360,11 +385,25 @@ void input_update(input_t *input, game_t *game) {
 	input->mouse_pos = GetMousePosition();
 	px_to_coord(&input->mouse_pos, &coord);
 	input->coord = coord;
+	input->square_hovered = &game->board.squares[coord.rank][coord.file];
+	input->flag_move = false;
+	if (!input->active) {
+		input->square_selected = NULL;
+	}
 	if (IsMouseButtonPressed(0)) {
-		input->active = !input->active;
 		if (input->active) {
-			input->selected = &game->board.squares\
-				[coord.rank][coord.file];
+			if (input->square_hovered->color == game->turn) {
+				input->active = false;
+				input->square_selected = NULL;
+			} else {
+				input->flag_move = true;
+				input->active = false;
+			}
+		} else {
+			if (input->square_hovered->color == game->turn) {
+				input->active = true;
+				input->square_selected = input->square_hovered;
+			}
 		}
 	}
 }
@@ -423,6 +462,11 @@ void game_loop() {
 				MAX_MOVES_POSSIBLE);
 			moves_select(&game, &input);
 			moves_draw(game.moves_selected, game.counter_ms);
+		}
+
+		if (input.flag_move) {
+			move_make(&game, &input);
+			board_update(&game);
 		}
 
 		if (game.flag_move_gen) {
