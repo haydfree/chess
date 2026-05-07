@@ -470,6 +470,8 @@ void game_loop() {
 		}
 
 		if (game.flag_move_gen) {
+			moves_clear(game.moves_possible, &game.counter_mp,
+				MAX_MOVES_POSSIBLE);
 			moves_all_gen(&ctx_move, (mvt_t**) mvt);
 			game.flag_move_gen = false;
 		}
