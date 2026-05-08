@@ -19,13 +19,13 @@ typedef float     f32;
 typedef double    f64;
 
 typedef i8 status;
-#define SENTINEL	 0x69696969
-#define STATUS_OK        ((status)0x00000000)
+#define SENTINEL	 0x69
 #define STATUS_SENTINEL  ((status)SENTINEL)
-#define STATUS_ERR_NULL  ((status)0xDEAD0001)
-#define STATUS_ERR_OOB   ((status)0xDEAD0002)
-#define STATUS_ERR_IO    ((status)0xDEAD0003)
-#define STATUS_ERR_MEM   ((status)0xDEAD0004)
+#define STATUS_OK        ((status)0x00)
+#define STATUS_ERR_NULL  ((status)0x10)
+#define STATUS_ERR_OOB   ((status)0x20)
+#define STATUS_ERR_IO    ((status)0x30)
+#define STATUS_ERR_MEM   ((status)0x40)
 
  #define DEBUG(fmt, ...) fprintf(stderr, "[DEBUG %s:%d in %s()] " fmt "\n", __FILE__, __LINE__, __func__, ##__VA_ARGS__)
 #define ARR_GET(arr, i, len) (assert((i) < (len)), (arr)[(i)])

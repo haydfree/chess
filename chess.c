@@ -51,10 +51,20 @@ typedef struct input_t {
 	bool active, flag_move;
 } input_t;
 
+typedef struct ctx_move_t {
+	move_t *moves_possible;
+	board_t *board;
+	piece_t *piece;
+	coord_t coord;
+	u8 *counter_mp;
+} ctx_move_t;
+
 typedef struct game_t {
 	move_t moves_actual[MAX_MOVES_ACTUAL];
 	move_t moves_possible[MAX_MOVES_POSSIBLE];
 	move_t moves_selected[MAX_MOVES_POSSIBLE];
+	texture_t textures;
+	ctx_move_t ctx_move;
 	board_t board;
 	input_t input;
 	color_t turn;
@@ -64,17 +74,10 @@ typedef struct game_t {
 		flag_move_gen;
 } game_t;
 
-typedef struct ctx_move_t {
-	move_t *moves_possible;
-	board_t *board;
-	piece_t *piece;
-	coord_t coord;
-	u8 *counter_mp;
-} ctx_move_t;
-
 typedef void mvt_t(ctx_move_t *);
 
-void board_init(board_t *board) {
+void board_init(game_t *game) {
+	board_t *board = &game->board;
 	i8 initial_board[RANKS][FILES] = {
 		{13,11,12,14,15,12,11,13},
 		{10,10,10,10,10,10,10,10},
@@ -102,7 +105,8 @@ void board_init(board_t *board) {
 	}
 }
 
-void textures_init(texture_t *textures) {
+void textures_init(game_t *game) {
+	texture_t *textures = &game->textures;
 	for (u8 color = c_W; color < COLORS; color++) {
 		for (u8 type = t_P; type < TYPES; type++) {
 			textures->pieces[color][type] = LoadTexture(TextFormat(
@@ -112,7 +116,8 @@ void textures_init(texture_t *textures) {
 	textures->board = LoadTexture(TextFormat("%s/board.png", PATH_TX));
 }
 
-void textures_deinit(texture_t *textures) {
+void textures_deinit(game_t *game) {
+	texture_t *textures = &game->textures;
 	for (u8 color = c_W; color < COLORS; color++) {
 		for (u8 type = t_P; type < TYPES; type++) {
 			UnloadTexture(textures->pieces[color][type]);
@@ -154,7 +159,10 @@ void is_ob(coord_t *coord, bool *res) {
 		*res = true;
 }
 
-void board_draw(board_t *board, texture_t *textures, input_t *input) {
+void board_draw(game_t *game) {
+	texture_t *textures = &game->textures;
+	input_t *input = &game->input;
+	board_t *board = &game->board;
 	DrawTexture(textures->board, 0, 0, WHITE);
 	
 	if (input->active) {
@@ -325,10 +333,10 @@ void moves_all_gen(ctx_move_t *ctx_move, mvt_t **mvt) {
 	}
 }
 
-void move_make(ctx_move_t *ctx_move, game_t *game, input_t *input) {
-	move_t *move = input->move_selected;
+void move_make(game_t *game) {
+	move_t *move = game->input.move_selected;
 
-	game->board.pieces[move->end.rank][move->end.file] = *ctx_move->piece;
+	game->board.pieces[move->end.rank][move->end.file] = *game->ctx_move.piece;
 	game->board.pieces[move->start.rank][move->start.file].color = c_NONE;
 	game->board.pieces[move->start.rank][move->start.file].type = t_NONE;
 	game->moves_actual[game->counter_ma++] = *move;
@@ -338,10 +346,11 @@ void move_make(ctx_move_t *ctx_move, game_t *game, input_t *input) {
 
 void moves_clear(move_t *moves, u8 *counter, u8 size) {
 	*counter = 0;
-	memset(moves, -1, sizeof(move_t) * size);
+	memset(moves, SENTINEL, sizeof(move_t) * size);
 }
 
-void moves_select(game_t *game, input_t *input) {
+void moves_select(game_t *game) {
+	input_t *input = &game->input;
 	for (u8 i = 0; i < game->counter_mp; i++) {
 		bool res = false;
 		is_coord_equal(&game->moves_possible[i].start, 
@@ -362,7 +371,8 @@ void moves_draw(move_t *moves, u8 size) {
 	}
 }
 
-void move_select(input_t *input, game_t *game) {
+void move_select(game_t *game) {
+	input_t *input = &game->input;
 	for (u8 i = 0; i < MAX_MOVES_POSSIBLE; i++) {
 		move_t *m = &game->moves_possible[i];
 		bool start_equal = false, end_equal = false;
@@ -376,34 +386,36 @@ void move_select(input_t *input, game_t *game) {
 	}
 }
 
-void input_init(input_t *input, game_t *game) {
+void input_init(game_t *game) {
+	input_t *input = &game->input;
+
 	input->active = false;
 	input->flag_move = false;
 	input->moves_selected = game->moves_selected;
 	input->move_selected = NULL;
-
-	memset(&input->coord_selected, 0, sizeof(coord_t));
-	memset(&input->coord_hovered, 0, sizeof(coord_t));
+	memset(&input->coord_selected, SENTINEL, sizeof(coord_t));
+	memset(&input->coord_hovered, SENTINEL, sizeof(coord_t));
 }
 
-void input_update(input_t *input, game_t *game) {
+void input_update(game_t *game) {
+	input_t *input = &game->input;
 	input->mouse_pos = GetMousePosition();
 	px_to_coord(&input->mouse_pos, &input->coord_hovered);
 	color_t color = game->board.pieces[input->coord_hovered.rank]\
 		[input->coord_hovered.file].color;
 	input->flag_move = false;
 	if (!input->active) {
-		memset(&input->coord_selected, 0, sizeof(coord_t));
+		memset(&input->coord_selected, SENTINEL, sizeof(coord_t));
 	}
 	if (IsMouseButtonPressed(0)) {
 		if (input->active) {
 			if (color == game->turn) {
 				input->active = false;
 				memset(&input->coord_selected,
-					0, sizeof(coord_t));
+					SENTINEL, sizeof(coord_t));
 			} else {
 				input->flag_move = true;
-				move_select(input, game);
+				move_select(game);
 				input->active = false;
 			}
 		} else {
@@ -415,21 +427,24 @@ void input_update(input_t *input, game_t *game) {
 	}
 }
 
-void ctx_move_init(ctx_move_t *ctx_move, game_t *game) {
+void ctx_move_init(game_t *game) {
+	ctx_move_t *ctx_move = &game->ctx_move;
 	ctx_move->board = &game->board;
 	ctx_move->moves_possible = game->moves_possible;
 	ctx_move->counter_mp = &game->counter_mp;
 }
 
-void ctx_move_update(ctx_move_t *ctx_move, input_t *input, game_t *game) {
-	ctx_move->coord = input->coord_selected;
-	ctx_move->piece = &game->board.pieces[ctx_move->coord.rank]\
-		[ctx_move->coord.file];
+void ctx_move_update(game_t *game) {
+	game->ctx_move.coord = game->input.coord_selected;
+	game->ctx_move.piece = &game->board.pieces[game->ctx_move.coord.rank]\
+		[game->ctx_move.coord.file];
 }
 
 void game_init(game_t *game) {
-	board_init(&game->board);
-	input_init(&game->input, game);
+	board_init(game);
+	input_init(game);
+	ctx_move_init(game);
+	textures_init(game);
 	game->counter_ma = 0;
 	game->counter_mp = 0;
 	game->counter_ms = 0;
@@ -442,16 +457,16 @@ void game_init(game_t *game) {
 	game->flag_check_black = false;
 	game->flag_move_gen = true;
 
-	memset(game->moves_actual, 0, MAX_MOVES_ACTUAL*sizeof(move_t));
-	memset(game->moves_possible, 0, MAX_MOVES_POSSIBLE*sizeof(move_t));
-	memset(game->moves_selected, 0, MAX_MOVES_POSSIBLE*sizeof(move_t));
+	memset(game->moves_actual, SENTINEL,
+		MAX_MOVES_ACTUAL*sizeof(move_t));
+	memset(game->moves_possible, SENTINEL, 
+		MAX_MOVES_POSSIBLE*sizeof(move_t));
+	memset(game->moves_selected, SENTINEL,
+		MAX_MOVES_POSSIBLE*sizeof(move_t));
 }
 
 void game_loop() {
 	game_t game;
-	input_t input;
-	ctx_move_t ctx_move;
-	texture_t textures;
 	mvt_t *mvt[TYPES] = {moves_p_gen, moves_n_gen, moves_b_gen, 
 		moves_r_gen, moves_q_gen, moves_k_gen};
 
@@ -460,37 +475,35 @@ void game_loop() {
 	SetTargetFPS(TARGET_FPS);
 
 	game_init(&game);
-	ctx_move_init(&ctx_move, &game);
-	textures_init(&textures);
 
 	while (!WindowShouldClose()) {
 		BeginDrawing();
 		ClearBackground(WHITE);
 
-		board_draw(&game.board, &textures, &input);
-		input_update(&input, &game);
+		board_draw(&game);
+		input_update(&game);
 
-		if (input.active) {
+		if (game.input.active) {
 			moves_clear(game.moves_selected, &game.counter_ms,
 				MAX_MOVES_POSSIBLE);
-			moves_select(&game, &input);
+			moves_select(&game);
 			moves_draw(game.moves_selected, game.counter_ms);
 		}
 
-		if (input.flag_move) {
-			ctx_move_update(&ctx_move, &input, &game);
-			move_make(&ctx_move, &game, &input);
+		if (game.input.flag_move) {
+			ctx_move_update(&game);
+			move_make(&game);
 		}
 
 		if (game.flag_move_gen) {
 			moves_clear(game.moves_possible, &game.counter_mp,
 				MAX_MOVES_POSSIBLE);
-			moves_all_gen(&ctx_move, (mvt_t**) mvt);
+			moves_all_gen(&game.ctx_move, (mvt_t**) mvt);
 			game.flag_move_gen = false;
 		}
 
 		EndDrawing();
 	}
-	textures_deinit(&textures);
+	textures_deinit(&game);
 	CloseWindow();
 }
