@@ -338,7 +338,7 @@ void move_make(ctx_move_t *ctx_move, game_t *game, input_t *input) {
 
 void moves_clear(move_t *moves, u8 *counter, u8 size) {
 	*counter = 0;
-	memset(moves, 0, sizeof(move_t) * size);
+	memset(moves, -1, sizeof(move_t) * size);
 }
 
 void moves_select(game_t *game, input_t *input) {
@@ -358,7 +358,7 @@ void moves_draw(move_t *moves, u8 size) {
 		coord_t c = moves[i].end;
 		Vector2 v = {0};
 		coord_to_px(&c, &v, true);
-		DrawCircle(v.x, v.y, 5, RED);
+		DrawCircle(v.x, v.y, 5, BLACK);
 	}
 }
 
@@ -421,6 +421,12 @@ void ctx_move_init(ctx_move_t *ctx_move, game_t *game) {
 	ctx_move->counter_mp = &game->counter_mp;
 }
 
+void ctx_move_update(ctx_move_t *ctx_move, input_t *input, game_t *game) {
+	ctx_move->coord = input->coord_selected;
+	ctx_move->piece = &game->board.pieces[ctx_move->coord.rank]\
+		[ctx_move->coord.file];
+}
+
 void game_init(game_t *game) {
 	board_init(&game->board);
 	input_init(&game->input, game);
@@ -472,6 +478,7 @@ void game_loop() {
 		}
 
 		if (input.flag_move) {
+			ctx_move_update(&ctx_move, &input, &game);
 			move_make(&ctx_move, &game, &input);
 		}
 
