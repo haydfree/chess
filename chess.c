@@ -488,6 +488,7 @@ void game_loop() {
 				MAX_MOVES_POSSIBLE);
 			moves_select(&game);
 			moves_draw(game.moves_selected, game.counter_ms);
+			DEBUG("mp size: %u, ms size: %u", game.counter_mp, game.counter_ms);
 		}
 
 		if (game.input.flag_move) {
