@@ -65,7 +65,7 @@ typedef struct game_t {
 	move_t moves_selected[MAX_MOVES_POSSIBLE];
 	texture_t textures;
 	ctx_move_t ctx_move;
-	board_t board;
+	board_t board, board_copy;
 	input_t input;
 	move_t *move_selected;
 	color_t turn;
@@ -180,6 +180,15 @@ void board_draw(game_t *game) {
 							     [piece.type],
 					v, WHITE);
 			}
+		}
+	}
+}
+
+void board_copy(game_t *game) {
+	for (u8 rank = 0; rank < RANKS; rank++) {
+		for (u8 file = 0; file < FILES; file++) {
+			game->board_copy.pieces[rank][file] = \
+				game->board.pieces[rank][file];
 		}
 	}
 }
@@ -342,12 +351,9 @@ void move_make(game_t *game) {
 	game->flag_move_gen = true;
 }
 
-void moves_clear(game_t *game) {
-	memset(game->moves_possible, SENTINEL, sizeof(move_t) * MAX_MOVES_POSSIBLE);
-	memset(game->moves_selected, SENTINEL, sizeof(move_t) * MAX_MOVES_POSSIBLE);
-	game->counter_mp = 0;
-	game->counter_ms = 0;
-	game->move_selected = (move_t *) SENTINEL;
+void moves_clear(move_t *moves, size_t moves_size, u8 *counter) {
+	memset(moves, SENTINEL, sizeof(move_t) * moves_size);
+	*counter = 0;
 }
 
 void moves_select(game_t *game) {
@@ -495,13 +501,20 @@ void game_loop() {
 			moves_draw(game.moves_selected, game.counter_ms);
 		}
 
+		if (!game.input.active) {
+			if (game.counter_ms)
+				moves_clear(game.moves_selected, MAX_MOVES_POSSIBLE,
+					&game.counter_ms);
+		}
+
 		if (game.input.flag_move) {
 			ctx_move_update(&game);
 			move_make(&game);
 		}
 
 		if (game.flag_move_gen) {
-			moves_clear(&game);
+			moves_clear(game.moves_possible, MAX_MOVES_POSSIBLE,
+				&game.counter_mp);
 			moves_all_gen(&game.ctx_move, (mvt_t **) mvt);
 			game.flag_move_gen = false;
 		}
