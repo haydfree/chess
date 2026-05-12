@@ -2,7 +2,7 @@
 
 #define NUM_DIRS 4
 #define MAX_MOVES_ACTUAL 255
-#define MAX_MOVES_POSSIBLE 64
+#define MAX_MOVES_POSSIBLE 128
 #define RANKS 8
 #define FILES 8
 #define COLORS 2
@@ -52,10 +52,10 @@ typedef struct input_t {
 } input_t;
 
 typedef struct ctx_move_t {
+	coord_t coord;
 	move_t *moves_possible;
 	board_t *board;
 	piece_t *piece;
-	coord_t coord;
 	u8 *counter_mp;
 } ctx_move_t;
 
@@ -67,11 +67,13 @@ typedef struct game_t {
 	ctx_move_t ctx_move;
 	board_t board, board_copy;
 	input_t input;
+	coord_t coord_king_w, coord_king_b;
 	move_t *move_selected;
 	color_t turn;
 	i8 score;
-	u8 score_white, score_black, counter_ma, counter_mp, counter_ms;
-	bool flag_en_passant, flag_check_white, flag_check_black, flag_move_gen;
+	u8 score_w, score_b, counter_ma, counter_mp, counter_ms;
+	bool flag_en_passant, flag_move_gen, flag_check_w, flag_check_b,
+		flag_castle_w, flag_castle_b;
 } game_t;
 
 typedef void mvt_t(ctx_move_t *);
@@ -193,13 +195,30 @@ void board_copy(game_t *game) {
 	}
 }
 
-void determine_check(ctx_move_t *ctx_move) {
-	coord_t wk, bk;
-	move_t *moves_possible = ctx_move->moves_possible;
+void coord_king_update(game_t *game) {
+	for (u8 rank = 0; rank < RANKS; rank++) {
+		for (u8 file = 0; file < FILES; file++) {
+			if (game->board.pieces[rank][file].color == c_W && \
+				game->board.pieces[rank][file].type == t_K) {
+				game->coord_king_w.rank = rank;
+				game->coord_king_w.file = file;
+			}
+
+			if (game->board.pieces[rank][file].color == c_B && \
+				game->board.pieces[rank][file].type == t_K) {
+				game->coord_king_b.rank = rank;
+				game->coord_king_b.file = file;
+			}
+		}
+	}
+}
+
+void determine_check(game_t *game) {
 	bool resw = false, resb = false;
+	move_t *moves_possible = game->moves_possible;
 	for (u8 i = 0; i < MAX_MOVES_POSSIBLE; i++) {
-		is_coord_equal(&moves_possible[i].end, &wk, &resw);
-		is_coord_equal(&moves_possible[i].end, &bk, &resb);
+		is_coord_equal(&moves_possible[i].end, &game->coord_king_w, &resw);
+		is_coord_equal(&moves_possible[i].end, &game->coord_king_b, &resb);
 	}
 }
 
@@ -457,24 +476,28 @@ void game_init(game_t *game) {
 	input_init(game);
 	ctx_move_init(game);
 	textures_init(game);
+	board_copy(game);
 	game->move_selected = (move_t *) SENTINEL;
 	game->counter_ma = 0;
 	game->counter_mp = 0;
 	game->counter_ms = 0;
 	game->turn = c_W;
 	game->score = 0;
-	game->score_white = 0;
-	game->score_black = 0;
+	game->score_w = 0;
+	game->score_b = 0;
 	game->flag_en_passant = false;
-	game->flag_check_white = false;
-	game->flag_check_black = false;
+	game->flag_check_w = false;
+	game->flag_check_b = false;
 	game->flag_move_gen = true;
 
-	memset(game->moves_actual, SENTINEL, MAX_MOVES_ACTUAL * sizeof(move_t));
+	memset(game->moves_actual, SENTINEL,
+		MAX_MOVES_ACTUAL * sizeof(move_t));
 	memset(game->moves_possible, SENTINEL,
 		MAX_MOVES_POSSIBLE * sizeof(move_t));
 	memset(game->moves_selected, SENTINEL,
 		MAX_MOVES_POSSIBLE * sizeof(move_t));
+	memset(&game->coord_king_w, SENTINEL, sizeof(coord_t));
+	memset(&game->coord_king_b, SENTINEL, sizeof(coord_t));
 }
 
 void game_loop() {
