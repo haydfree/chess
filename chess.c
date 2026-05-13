@@ -48,7 +48,7 @@ typedef struct input_t {
 	Vector2 mouse_pos;
 	coord_t coord_hovered, coord_selected;
 	move_t *moves_selected;
-	bool active, flag_move;
+	b8 flags;
 } input_t;
 
 typedef struct ctx_move_t {
@@ -57,6 +57,7 @@ typedef struct ctx_move_t {
 	board_t *board;
 	piece_t *piece;
 	u8 *counter_mp;
+	b8 flags;
 } ctx_move_t;
 
 typedef struct game_t {
@@ -72,8 +73,7 @@ typedef struct game_t {
 	color_t turn;
 	i8 score;
 	u8 score_w, score_b, counter_ma, counter_mp, counter_ms;
-	bool flag_en_passant, flag_move_gen, flag_check_w, flag_check_b,
-		flag_castle_w, flag_castle_b;
+	b8 flags;
 } game_t;
 
 typedef void mvt_t(ctx_move_t *);
@@ -164,7 +164,7 @@ void board_draw(game_t *game) {
 	board_t *board = &game->board;
 	DrawTexture(textures->board, 0, 0, WHITE);
 
-	if (input->active) {
+	if (input->flags & 0b10) {
 		coord_t c = input->coord_selected;
 		Vector2 v = {0};
 		coord_to_px(&c, &v, false);
@@ -367,7 +367,7 @@ void move_make(game_t *game) {
 	game->board.pieces[move->start.rank][move->start.file].type = t_NONE;
 	game->moves_actual[game->counter_ma++] = *move;
 	game->turn = !game->turn;
-	game->flag_move_gen = true;
+	game->flags |= 0b100000;
 }
 
 void moves_clear(move_t *moves, size_t moves_size, u8 *counter) {
@@ -416,8 +416,7 @@ void move_select(game_t *game, bool *res) {
 void input_init(game_t *game) {
 	input_t *input = &game->input;
 
-	input->active = false;
-	input->flag_move = false;
+	input->flags = 0b00;
 	input->moves_selected = game->moves_selected;
 	memset(&input->coord_selected, SENTINEL, sizeof(coord_t));
 	memset(&input->coord_hovered, SENTINEL, sizeof(coord_t));
@@ -431,27 +430,27 @@ void input_update(game_t *game) {
 				.pieces[input->coord_hovered.rank]
 				       [input->coord_hovered.file]
 				.color;
-	input->flag_move = false;
-	if (!input->active) {
+	input->flags &= 0b10;
+	if (input->flags ^ 0b01) {
 		memset(&input->coord_selected, SENTINEL, sizeof(coord_t));
 	}
 	if (IsMouseButtonPressed(0)) {
-		if (input->active) {
+		if (input->flags ^ 0b10) {
 			if (color == game->turn) {
-				input->active = false;
+				input->flags &= 0b01;
 				memset(&input->coord_selected, SENTINEL,
 					sizeof(coord_t));
 			} else {
 				bool res = false;
 				move_select(game, &res);
 				if (res) {
-					input->flag_move = true;
-					input->active = false;
+					input->flags &= 0b01;
+					input->flags |= 0b01;
 				}
 			}
 		} else {
 			if (color == game->turn) {
-				input->active = true;
+				input->flags |= 0b10;
 				input->coord_selected = input->coord_hovered;
 			}
 		}
@@ -485,10 +484,7 @@ void game_init(game_t *game) {
 	game->score = 0;
 	game->score_w = 0;
 	game->score_b = 0;
-	game->flag_en_passant = false;
-	game->flag_check_w = false;
-	game->flag_check_b = false;
-	game->flag_move_gen = true;
+	game->flags = 0b100011;
 
 	memset(game->moves_actual, SENTINEL,
 		MAX_MOVES_ACTUAL * sizeof(move_t));
@@ -518,28 +514,28 @@ void game_loop() {
 		board_draw(&game);
 		input_update(&game);
 		
-		if (game.input.active) {
+		if (game.input.flags & 0b10) {
 			if (!game.counter_ms)
 				moves_select(&game);
 			moves_draw(game.moves_selected, game.counter_ms);
 		}
 
-		if (!game.input.active) {
+		if (~game.input.flags & 0b10) {
 			if (game.counter_ms)
 				moves_clear(game.moves_selected, MAX_MOVES_POSSIBLE,
 					&game.counter_ms);
 		}
 
-		if (game.input.flag_move) {
+		if (game.input.flags & 0b01) {
 			ctx_move_update(&game);
 			move_make(&game);
 		}
 
-		if (game.flag_move_gen) {
+		if (game.flags & 0b100000) {
 			moves_clear(game.moves_possible, MAX_MOVES_POSSIBLE,
 				&game.counter_mp);
 			moves_all_gen(&game.ctx_move, (mvt_t **) mvt);
-			game.flag_move_gen = false;
+			game.flags &= 0b011111;
 		}
 
 		EndDrawing();

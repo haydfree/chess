@@ -18,6 +18,8 @@ typedef int64_t   i64;
 typedef float     f32;
 typedef double    f64;
 
+typedef u8 	  b8;
+
 typedef i8 status;
 #define SENTINEL	 0x69
 #define STATUS_SENTINEL  ((status)SENTINEL)
